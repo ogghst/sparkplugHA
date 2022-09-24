@@ -1,0 +1,1 @@
+This aims to be a test project for a possible sparkplugb-based convention for Home Automation device messaging
