@@ -4,6 +4,13 @@
   <artifactId>java</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name>sparkplugHA convention - Java Implementation</name>
+  <dependencies>
+    <dependency>
+      <groupId>org.eclipse.tahu</groupId>
+      <artifactId>tahu-core</artifactId>
+      <version>0.5.17</version>
+    </dependency>
+  </dependencies>
   <build>
     <sourceDirectory>src</sourceDirectory>
     <plugins>
