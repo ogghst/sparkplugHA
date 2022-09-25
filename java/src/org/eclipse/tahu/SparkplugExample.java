@@ -115,7 +115,8 @@ public class SparkplugExample implements MqttCallbackExtended {
 			// Random generator and thread pool for outgoing published messages
 			executor = Executors.newFixedThreadPool(1);
 
-			// Build up DEATH payload - note DEATH payloads don't have a regular sequence number
+			// Build up DEATH payload - note DEATH payloads don't have a regular sequence
+			// number
 			SparkplugBPayloadBuilder deathPayload = new SparkplugBPayloadBuilder().setTimestamp(new Date());
 			deathPayload = addBdSeqNum(deathPayload);
 			byte[] deathBytes;
@@ -147,7 +148,8 @@ public class SparkplugExample implements MqttCallbackExtended {
 			client.setCallback(this); // short timeout on failure to connect
 			client.connect(options);
 
-			// Subscribe to control/command messages for both the edge of network node and the attached devices
+			// Subscribe to control/command messages for both the edge of network node and
+			// the attached devices
 			client.subscribe(NAMESPACE + "/" + groupId + "/NCMD/" + edgeNode + "/#", 0);
 			client.subscribe(NAMESPACE + "/" + groupId + "/DCMD/" + edgeNode + "/#", 0);
 			client.subscribe(NAMESPACE + "/#", 0);
@@ -160,8 +162,8 @@ public class SparkplugExample implements MqttCallbackExtended {
 					synchronized (seqLock) {
 						System.out.println("Connected - publishing new data");
 						// Create the payload and add some metrics
-						SparkplugBPayload payload =
-								new SparkplugBPayload(new Date(), newMetrics(false), getSeqNum(), newUUID(), null);
+						SparkplugBPayload payload = new SparkplugBPayload(new Date(), newMetrics(false), getSeqNum(),
+								newUUID(), null);
 
 						// Compress payload (optional)
 						if (USING_COMPRESSION) {
@@ -201,8 +203,8 @@ public class SparkplugExample implements MqttCallbackExtended {
 				seq = 0;
 
 				// Create the BIRTH payload and set the position and other metrics
-				SparkplugBPayload payload =
-						new SparkplugBPayload(new Date(), new ArrayList<Metric>(), getSeqNum(), newUUID(), null);
+				SparkplugBPayload payload = new SparkplugBPayload(new Date(), new ArrayList<Metric>(), getSeqNum(),
+						newUUID(), null);
 
 				payload.addMetric(new MetricBuilder("bdSeq", Int64, (long) bdSeq).createMetric());
 				payload.addMetric(new MetricBuilder("Node Control/Rebirth", Boolean, false).createMetric());
@@ -213,8 +215,8 @@ public class SparkplugExample implements MqttCallbackExtended {
 						.addProperty("engHigh", new PropertyValue(PropertyDataType.Double, 10.0))
 						/*
 						 * .addProperty("CustA", new PropertyValue(PropertyDataType.String, "Custom A"))
-						 * .addProperty("CustB", new PropertyValue(PropertyDataType.Double, 10.0)) .addProperty("CustC",
-						 * new PropertyValue(PropertyDataType.Int32, 100))
+						 * .addProperty("CustB", new PropertyValue(PropertyDataType.Double, 10.0))
+						 * .addProperty("CustC", new PropertyValue(PropertyDataType.Int32, 100))
 						 */
 						.createPropertySet();
 				payload.addMetric(
@@ -232,8 +234,8 @@ public class SparkplugExample implements MqttCallbackExtended {
 		try {
 			synchronized (seqLock) {
 				// Create the payload and add some metrics
-				SparkplugBPayload payload =
-						new SparkplugBPayload(new Date(), newMetrics(true), getSeqNum(), newUUID(), null);
+				SparkplugBPayload payload = new SparkplugBPayload(new Date(), newMetrics(true), getSeqNum(), newUUID(),
+						null);
 
 				payload.addMetric(new MetricBuilder("Device Control/Rebirth", Boolean, false).createMetric());
 
@@ -265,8 +267,8 @@ public class SparkplugExample implements MqttCallbackExtended {
 						.addProperty("engHigh", new PropertyValue(PropertyDataType.Double, 10.0))
 						/*
 						 * .addProperty("CustA", new PropertyValue(PropertyDataType.String, "Custom A"))
-						 * .addProperty("CustB", new PropertyValue(PropertyDataType.Double, 10.0)) .addProperty("CustC",
-						 * new PropertyValue(PropertyDataType.Int32, 100))
+						 * .addProperty("CustB", new PropertyValue(PropertyDataType.Double, 10.0))
+						 * .addProperty("CustC", new PropertyValue(PropertyDataType.Int32, 100))
 						 */
 						.createPropertySet();
 				payload.addMetric(
@@ -344,8 +346,8 @@ public class SparkplugExample implements MqttCallbackExtended {
 			// Outputs/0 is tied to Inputs/0
 			// Outputs/2 is tied to Inputs/1
 			// Outputs/2 is tied to Inputs/2
-			SparkplugBPayload outboundPayload =
-					new SparkplugBPayload(new Date(), new ArrayList<Metric>(), getSeqNum(), newUUID(), null);
+			SparkplugBPayload outboundPayload = new SparkplugBPayload(new Date(), new ArrayList<Metric>(), getSeqNum(),
+					newUUID(), null);
 			for (Metric metric : inboundPayload.getMetrics()) {
 				String name = metric.getName();
 				Object value = metric.getValue();
@@ -401,7 +403,8 @@ public class SparkplugExample implements MqttCallbackExtended {
 		metrics.add(new MetricBuilder("DateTime", DateTime, new Date()).createMetric());
 		metrics.add(new MetricBuilder("Text", Text, newUUID()).createMetric());
 		metrics.add(new MetricBuilder("UUID", UUID, newUUID()).createMetric());
-		// metrics.add(new MetricBuilder("Bytes", Bytes, randomBytes(20)).createMetric());
+		// metrics.add(new MetricBuilder("Bytes", Bytes,
+		// randomBytes(20)).createMetric());
 		// metrics.add(new MetricBuilder("File", File, null).createMetric());
 
 		// DataSet
@@ -490,15 +493,17 @@ public class SparkplugExample implements MqttCallbackExtended {
 					new TemplateBuilder().definition(true)
 							.addMetric(new MetricBuilder("StringMember", String, "value").createMetric())
 							.addMetric(new MetricBuilder("IntegerMember", Int32, 0).createMetric()).createTemplate())
-									.createMetric());
-			// Add new template "newType" definition that contains an instance of "subType" as a member
+					.createMetric());
+			// Add new template "newType" definition that contains an instance of "subType"
+			// as a member
 			metrics.add(new MetricBuilder("newType", Template,
 					new TemplateBuilder().definition(true).addMetric(new MetricBuilder("mySubType", Template,
 							new TemplateBuilder().definition(false).templateRef("subType")
 									.addMetric(new MetricBuilder("StringMember", String, "value").createMetric())
 									.addMetric(new MetricBuilder("IntegerMember", Int32, 0).createMetric())
-									.createTemplate()).createMetric())
-							.createTemplate()).createMetric());
+									.createTemplate())
+							.createMetric()).createTemplate())
+					.createMetric());
 		}
 
 		// Add an instance of "newType
@@ -508,8 +513,10 @@ public class SparkplugExample implements MqttCallbackExtended {
 								new TemplateBuilder().definition(false).templateRef("subType")
 										.addMetric(new MetricBuilder("StringMember", String, "myValue").createMetric())
 										.addMetric(new MetricBuilder("IntegerMember", Int32, 1).createMetric())
-										.createTemplate()).createMetric())
-						.createTemplate()).createMetric());
+										.createTemplate())
+								.createMetric())
+						.createTemplate())
+				.createMetric());
 
 		return metrics;
 
