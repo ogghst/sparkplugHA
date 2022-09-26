@@ -13,7 +13,7 @@ import org.eclipse.tahu.message.model.Metric.MetricBuilder;
 import org.eclipse.tahu.message.model.SparkplugBPayload;
 import org.eclipse.tahu.message.model.SparkplugBPayload.SparkplugBPayloadBuilder;
 
-public class BaseSparkplugHANode {
+public class BaseSpHANode {
 
 	protected String hwVersion = "Emulated Hardware";
 	protected String swVersion = "v1.0.0";
@@ -30,9 +30,9 @@ public class BaseSparkplugHANode {
 
 	private SparkplugBPayload nodeBirthPayload;
 
-	private final static Logger LOGGER = Logger.getLogger(BaseSparkplugHANode.class.getName());
+	private final static Logger LOGGER = Logger.getLogger(BaseSpHANode.class.getName());
 
-	public BaseSparkplugHANode() {
+	public BaseSpHANode() {
 		super();
 		metrics = new Hashtable<String, BaseSpHAMetric>();
 	}
@@ -76,9 +76,8 @@ public class BaseSparkplugHANode {
 
 	}
 
-	protected SparkplugBPayload createDataPayload() throws Exception {
+	protected SparkplugBPayload createPayload() throws Exception {
 
-		// Create the BIRTH payload and set the position and other metrics
 		SparkplugBPayload payload = new SparkplugBPayload(new Date(), new ArrayList<Metric>(), getSeqNum(), newUUID(),
 				null);
 		return payload;
@@ -87,7 +86,7 @@ public class BaseSparkplugHANode {
 
 	protected SparkplugBPayload createSpHaMetricPayload(String name) throws Exception {
 
-		SparkplugBPayload outboundPayload = createDataPayload();
+		SparkplugBPayload outboundPayload = createPayload();
 		BaseSpHAMetric spHAMetric = getSpHAMetricByName(name);
 		if (spHAMetric == null) {
 			throw new SpHAMetricNotFoundException("No Metric with name '" + name + "', ignoring");
@@ -106,15 +105,19 @@ public class BaseSparkplugHANode {
 		return metrics.get(name);
 	}
 
-	public void updateSpHAMetricValue(String name, Object value) throws SpHAMetricNotFoundException {
+	public BaseSpHAMetric updateSpHAMetricValue(String name, Object value) throws SpHAMetricNotFoundException {
 		BaseSpHAMetric spHAMetric = getSpHAMetricByName(name);
 		if (spHAMetric == null) {
 			throw new SpHAMetricNotFoundException("No Metric with name '" + name + "', ignoring");
 		}
-
-		spHAMetric.setValue(value);
-		metrics.replace(name, spHAMetric);
-
+		return updateSpHAMetric(spHAMetric);
+	}
+	
+	public BaseSpHAMetric updateSpHAMetric(BaseSpHAMetric metric) throws SpHAMetricNotFoundException {
+		if(metrics.replace(metric.getName(), metric) == null) {
+			throw new SpHAMetricNotFoundException("No Metric with name '" + metric.getName() + "', ignoring");
+		}
+		return metric;
 	}
 
 	public long getSeqNum() throws Exception {
