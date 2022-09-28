@@ -31,29 +31,48 @@ import org.eclipse.tahu.message.model.Topic;
 import org.eclipse.tahu.util.CompressionAlgorithm;
 import org.eclipse.tahu.util.TopicUtil;
 
-import ch.qos.logback.core.spi.LogbackLock;
+import it.nm.sparkplugha.model.SPHANodeDescriptor;
+import it.nm.sparkplugha.model.SPHANodeDescriptor.SPHANodeState;
 
 public class ConnectedSpHAPrimaryApplication implements MqttCallbackExtended {
 
-	private final static Logger LOGGER = Logger.getLogger(ConnectedSpHAPrimaryApplication.class.getName());
+	private class RebirthDelayTask extends TimerTask {
+		private EdgeNodeDescriptor edgeNodeDescriptor;
 
-	protected MqttClient client;
-	private CompressionAlgorithm compressionAlgorithm = CompressionAlgorithm.GZIP;
-	private ExecutorService executor;
-	private Object seqLock = new Object();
-	private String clientId = "undefinedClientId";
-	private String serverPassword = "";
-	private String serverUrl = "tcp://localhost:1883";
-	private String serverUsername = "";
-	private boolean USING_COMPRESSION = false;
-	private boolean USING_REAL_TLS = false;
-	private String primaryHostId = "UndefinedPrimaryHostId";
+		public RebirthDelayTask(EdgeNodeDescriptor edgeNodeDescriptor) {
+			this.edgeNodeDescriptor = edgeNodeDescriptor;
+		}
 
-	public static final String NAMESPACE = "spBv1.0";
+		public void run() {
+			if (rebirthTimers.get(edgeNodeDescriptor) != null) {
+				rebirthTimers.get(edgeNodeDescriptor).cancel();
+				rebirthTimers.remove(edgeNodeDescriptor);
+			}
+		}
+	}
+
 	private static final String HOST_NAMESPACE = "STATE";
-
-	private final Map<EdgeNodeDescriptor, EdgeNode> edgeNodeMap;
+	private final static Logger LOGGER = Logger.getLogger(ConnectedSpHAPrimaryApplication.class.getName());
+	public static final String NAMESPACE = "spBv1.0";
+	protected MqttClient client;
+	private String hostId = "undefinedHostId";
+	private CompressionAlgorithm compressionAlgorithm = CompressionAlgorithm.GZIP;
+	private final Map<EdgeNodeDescriptor, SPHANodeDescriptor> edgeNodeMap;
+	private ExecutorService executor;
+	private String primaryHostId = "UndefinedPrimaryHostId";
 	private final Map<EdgeNodeDescriptor, Timer> rebirthTimers;
+	
+	private Object seqLock = new Object();
+
+	private String serverPassword = "";
+
+	private String serverUrl = "tcp://localhost:1883";
+
+	private String serverUsername = "";
+
+	private boolean USING_COMPRESSION = false;
+
+	private boolean USING_REAL_TLS = false;
 
 	public ConnectedSpHAPrimaryApplication() {
 		edgeNodeMap = new ConcurrentHashMap<>();
@@ -85,7 +104,7 @@ public class ConnectedSpHAPrimaryApplication implements MqttCallbackExtended {
 			if (primaryHostId != null && !primaryHostId.isEmpty()) {
 				options.setWill(HOST_NAMESPACE + "/" + primaryHostId, willPayload, 1, true);
 			}
-			client = new MqttClient(serverUrl, clientId);
+			client = new MqttClient(serverUrl, hostId);
 			client.setTimeToWait(2000);
 			client.setCallback(this); // short timeout on failure to connect
 			client.connect(options);
@@ -101,25 +120,59 @@ public class ConnectedSpHAPrimaryApplication implements MqttCallbackExtended {
 		}
 	}
 
-	private void publishHostBirth() {
-		try {
-			if (primaryHostId != null && !primaryHostId.isEmpty()) {
-				LOGGER.info("Publishing Host Birth");
-				executor.execute(new Publisher(client, HOST_NAMESPACE + "/" + primaryHostId, "ONLINE".getBytes(), 1,
-						true, USING_COMPRESSION));
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+	@Override
+	public void connectComplete(boolean reconnect, String serverURI) {
+		LOGGER.info("Connected! - publishing birth");
+		publishHostBirth();
 	}
 
 	@Override
 	public void connectionLost(Throwable cause) {
 		LOGGER.log(Level.WARNING, "The MQTT Connection was lost! - will auto-reconnect", cause);
 	}
+	@Override
+	public void deliveryComplete(IMqttDeliveryToken token) {
+		LOGGER.fine("Published message: " + token.getTopics());
+	}
+
+	public String getHostId() {
+		return hostId;
+	}
+	public String getServerPassword() {
+		return serverPassword;
+	}
+
+	public String getServerUrl() {
+		return serverUrl;
+	}
+
+	public String getServerUsername() {
+		return serverUsername;
+	}
+
+	private boolean handleSeqNumberCheck(SPHANodeDescriptor edgeNode, long incomingSeqNum) {
+		// Get the last stored sequence number
+		Long storedSeqNum = edgeNode.getLastSeqNumber();
+		// Conditionally wrap to 0
+		long expectedSeqNum = storedSeqNum + 1 == 256 ? 0 : storedSeqNum + 1;
+		// Check if current sequence number is valid
+		if (incomingSeqNum != expectedSeqNum) {
+			// Sequence number is INVALID, set Edge Node offline
+			edgeNode.setState(SPHANodeState.OFFLINE);
+			// Request a rebirth
+			requestRebirth(edgeNode.getEdgeNodeId());
+			return false;
+		} else {
+			edgeNode.setLastSeqNumber(incomingSeqNum);
+			return true;
+		}
+	}
 
 	@Override
 	public void messageArrived(String stringTopic, MqttMessage message) throws Exception {
+		
+		LOGGER.fine("message arrived on topic '"+stringTopic+"'");
+		
 		if (stringTopic != null && stringTopic.startsWith(NAMESPACE)) {
 			// Get the topic tokens
 			String[] sparkplugTokens = stringTopic.split("/");
@@ -146,9 +199,9 @@ public class ConnectedSpHAPrimaryApplication implements MqttCallbackExtended {
 			EdgeNodeDescriptor edgeNodeDescriptor = new EdgeNodeDescriptor(topic.getGroupId(), topic.getEdgeNodeId());
 
 			// Special case for NBIRTH
-			EdgeNode edgeNode = edgeNodeMap.get(edgeNodeDescriptor);
+			SPHANodeDescriptor edgeNode = edgeNodeMap.get(edgeNodeDescriptor);
 			if (topic.getType().equals(MessageType.NBIRTH)) {
-				edgeNode = new EdgeNode(topic.getGroupId(), topic.getEdgeNodeId());
+				edgeNode = new SPHANodeDescriptor(topic.getGroupId(), topic.getEdgeNodeId());
 				edgeNodeMap.put(edgeNodeDescriptor, edgeNode);
 			}
 
@@ -184,32 +237,15 @@ public class ConnectedSpHAPrimaryApplication implements MqttCallbackExtended {
 		}
 	}
 
-	@Override
-	public void deliveryComplete(IMqttDeliveryToken token) {
-		LOGGER.fine("Published message: " + token.getTopics());
-	}
-
-	@Override
-	public void connectComplete(boolean reconnect, String serverURI) {
-		LOGGER.info("Connected! - publishing birth");
-		publishHostBirth();
-	}
-
-	private boolean handleSeqNumberCheck(EdgeNode edgeNode, long incomingSeqNum) {
-		// Get the last stored sequence number
-		Long storedSeqNum = edgeNode.getLastSeqNumber();
-		// Conditionally wrap to 0
-		long expectedSeqNum = storedSeqNum + 1 == 256 ? 0 : storedSeqNum + 1;
-		// Check if current sequence number is valid
-		if (incomingSeqNum != expectedSeqNum) {
-			// Sequence number is INVALID, set Edge Node offline
-			edgeNode.setOnline(false);
-			// Request a rebirth
-			requestRebirth(edgeNode.getEdgeNodeId());
-			return false;
-		} else {
-			edgeNode.setLastSeqNumber(incomingSeqNum);
-			return true;
+	private void publishHostBirth() {
+		try {
+			if (primaryHostId != null && !primaryHostId.isEmpty()) {
+				LOGGER.info("Publishing Host Birth");
+				executor.execute(new MQTTPublisher(client, HOST_NAMESPACE + "/" + primaryHostId, "ONLINE".getBytes(), 1,
+						true, USING_COMPRESSION));
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -222,10 +258,10 @@ public class ConnectedSpHAPrimaryApplication implements MqttCallbackExtended {
 				rebirthTimers.put(edgeNodeDescriptor, rebirthDelayTimer);
 				rebirthDelayTimer.schedule(new RebirthDelayTask(edgeNodeDescriptor), 5000);
 
-				EdgeNode edgeNode = edgeNodeMap.get(edgeNodeDescriptor);
+				SPHANodeDescriptor edgeNode = edgeNodeMap.get(edgeNodeDescriptor);
 				if (edgeNode != null) {
 					// Set the Edge Node offline
-					edgeNode.setOnline(false);
+					edgeNode.setState(SPHANodeState.OFFLINE);
 				}
 
 				// Request a device rebirth
@@ -236,7 +272,7 @@ public class ConnectedSpHAPrimaryApplication implements MqttCallbackExtended {
 								new MetricBuilder("Node Control/Rebirth", MetricDataType.Boolean, true).createMetric())
 						.createPayload();
 
-				executor.execute(new Publisher(client, rebirthTopic, rebirthPayload, 0, false, USING_COMPRESSION));
+				executor.execute(new MQTTPublisher(client, rebirthTopic, rebirthPayload, 0, false, USING_COMPRESSION));
 			} else {
 				LOGGER.fine("Not requesting Rebirth since we have in the last 5 seconds");
 			}
@@ -246,19 +282,20 @@ public class ConnectedSpHAPrimaryApplication implements MqttCallbackExtended {
 		}
 	}
 
-	private class RebirthDelayTask extends TimerTask {
-		private EdgeNodeDescriptor edgeNodeDescriptor;
+	public void setHostId(String clientId) {
+		this.hostId = clientId;
+	}
 
-		public RebirthDelayTask(EdgeNodeDescriptor edgeNodeDescriptor) {
-			this.edgeNodeDescriptor = edgeNodeDescriptor;
-		}
+	public void setServerPassword(String serverPassword) {
+		this.serverPassword = serverPassword;
+	}
 
-		public void run() {
-			if (rebirthTimers.get(edgeNodeDescriptor) != null) {
-				rebirthTimers.get(edgeNodeDescriptor).cancel();
-				rebirthTimers.remove(edgeNodeDescriptor);
-			}
-		}
+	public void setServerUrl(String serverUrl) {
+		this.serverUrl = serverUrl;
+	}
+
+	public void setServerUsername(String serverUsername) {
+		this.serverUsername = serverUsername;
 	}
 
 }

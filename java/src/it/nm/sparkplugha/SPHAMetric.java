@@ -2,13 +2,13 @@ package it.nm.sparkplugha;
 
 import org.eclipse.tahu.message.model.MetricDataType;
 
-public class BaseSpHAMetric {
+public class SPHAMetric {
 
 	private String name;
 	private Object value;
 	private MetricDataType type;
 
-	public BaseSpHAMetric(String name, MetricDataType type, Object value) {
+	protected SPHAMetric(String name, MetricDataType type, Object value) {
 		this.name = name;
 		this.value = value;
 		this.type = type;

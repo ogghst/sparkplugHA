@@ -21,7 +21,7 @@ import org.eclipse.tahu.message.model.SparkplugBPayload;
 import org.eclipse.tahu.util.CompressionAlgorithm;
 import org.eclipse.tahu.util.PayloadUtil;
 
-public class Publisher implements Runnable {
+public class MQTTPublisher implements Runnable {
 
 	private final MqttClient client;
 	private final String topic;
@@ -65,7 +65,7 @@ public class Publisher implements Runnable {
 
 	}
 
-	public Publisher(MqttClient client, String topic, byte[] bytePayload, int qos, boolean retained,
+	public MQTTPublisher(MqttClient client, String topic, byte[] bytePayload, int qos, boolean retained,
 			boolean compression) {
 		this.client = client;
 		this.topic = topic;
@@ -76,7 +76,7 @@ public class Publisher implements Runnable {
 		this.compression = compression;
 	}
 
-	public Publisher(MqttClient client, String topic, SparkplugBPayload sparkplugPayload, int qos, boolean retained,
+	public MQTTPublisher(MqttClient client, String topic, SparkplugBPayload sparkplugPayload, int qos, boolean retained,
 			boolean compression) {
 		this.client = client;
 		this.topic = topic;

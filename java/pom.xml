@@ -8,7 +8,7 @@
     <dependency>
       <groupId>org.eclipse.tahu</groupId>
       <artifactId>tahu-core</artifactId>
-      <version>0.5.17</version>
+      <version>0.5.18</version>
     </dependency>
   </dependencies>
   <build>

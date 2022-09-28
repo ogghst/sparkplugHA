@@ -1,4 +1,4 @@
-package it.nm.sparkplugha;
+package it.nm.sparkplugha.exceptions;
 
 public class SpHAMetricNotFoundException extends Exception {
 

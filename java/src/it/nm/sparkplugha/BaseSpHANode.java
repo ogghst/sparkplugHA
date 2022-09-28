@@ -1,6 +1,5 @@
 package it.nm.sparkplugha;
 
-import static org.eclipse.tahu.message.model.MetricDataType.Boolean;
 import static org.eclipse.tahu.message.model.MetricDataType.Int64;
 
 import java.util.ArrayList;
@@ -10,23 +9,30 @@ import java.util.logging.Logger;
 
 import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.Metric.MetricBuilder;
+import org.eclipse.tahu.message.model.MetricDataType;
 import org.eclipse.tahu.message.model.SparkplugBPayload;
 import org.eclipse.tahu.message.model.SparkplugBPayload.SparkplugBPayloadBuilder;
+import org.eclipse.tahu.message.model.Template.TemplateBuilder;
 
-public class BaseSpHANode {
+import it.nm.sparkplugha.exceptions.SpHAMetricNotFoundException;
+import it.nm.sparkplugha.model.SPHAFeature;
+
+public abstract class BaseSpHANode {
 
 	protected String hwVersion = "Emulated Hardware";
 	protected String swVersion = "v1.0.0";
 	protected static final String NAMESPACE = "spBv1.0";
-
-	protected String groupId = "Sparkplug B Home Automation Devices";
+	protected String groupId = "Sparkplug B Home Automation Nodes";
 	protected String edgeNode = "NDEDGENODE";
-	protected String deviceId = "NDDEVICEID";
 	protected String clientId = "NDCLIENTID";
+
 	private int bdSeq = 0;
 	private int seq = 0;
 
-	private Hashtable<String, BaseSpHAMetric> metrics;
+	private Object seqLock = new Object();
+
+	private Hashtable<String, SPHAMetric> metrics;
+	private Hashtable<String, SPHAFeature> features;
 
 	private SparkplugBPayload nodeBirthPayload;
 
@@ -34,49 +40,62 @@ public class BaseSpHANode {
 
 	public BaseSpHANode() {
 		super();
-		metrics = new Hashtable<String, BaseSpHAMetric>();
+		metrics = new Hashtable<String, SPHAMetric>();
+		features = new Hashtable<String, SPHAFeature>();
 	}
 
-	public SparkplugBPayloadBuilder addBdSeqNum(SparkplugBPayloadBuilder payload) throws Exception {
-		if (payload == null) {
-			payload = new SparkplugBPayloadBuilder();
-		}
-		if (bdSeq == 256) {
-			bdSeq = 0;
-		}
-		payload.addMetric(new MetricBuilder("bdSeq", Int64, (long) bdSeq).createMetric());
-		bdSeq++;
-		return payload;
+	protected void addFeature(SPHAFeature feature) {
+		features.put(feature.getName(), feature);
 	}
 
-	protected SparkplugBPayloadBuilder createNodeDeathPayload() throws Exception {
+	protected SparkplugBPayload createNodeDeathPayload() throws Exception {
 		// Build up DEATH payload - note DEATH payloads don't have a regular sequence
 		// number
 		SparkplugBPayloadBuilder deathPayload = new SparkplugBPayloadBuilder().setTimestamp(new Date());
-		deathPayload = addBdSeqNum(deathPayload);
+		if (bdSeq == 256) {
+			bdSeq = 0;
+		}
+		deathPayload.addMetric(new MetricBuilder("bdSeq", Int64, (long) bdSeq).createMetric());
+		bdSeq++;
 
-		return deathPayload;
+		return deathPayload.createPayload();
 
 	}
 
 	protected SparkplugBPayload createNodeBirthPayload() throws Exception {
 
-		// Create the BIRTH payload and set the position and other metrics
-		SparkplugBPayload payload = new SparkplugBPayload(new Date(), new ArrayList<Metric>(), getSeqNum(), newUUID(),
-				null);
+		synchronized (seqLock) {
+			// Reset the sequence number
+			seq = 0;
 
-		payload.addMetric(new MetricBuilder("bdSeq", Int64, (long) bdSeq).createMetric());
-		payload.addMetric(new MetricBuilder("Node Control/Rebirth", Boolean, false).createMetric());
+			// Create the BIRTH payload and set the position and other metrics
+			SparkplugBPayload payload = createPayload();
 
-		for (BaseSpHAMetric metric : metrics.values()) {
-			payload.addMetric(new MetricBuilder(metric.getName(), metric.getType(), metric.getValue()).createMetric());
+			payload.addMetric(new MetricBuilder("bdSeq", Int64, (long) bdSeq).createMetric());
+			payload.addMetric(new MetricBuilder("Node Control/Rebirth", MetricDataType.Boolean, false).createMetric());
+			payload.addMetric(new MetricBuilder("Node Control/Reboot", MetricDataType.Boolean, false).createMetric());
+			payload.addMetric(
+					new MetricBuilder("Node Control/Next Server", MetricDataType.Boolean, false).createMetric());
+			payload.addMetric(new MetricBuilder("Node Control/Scan Rate", MetricDataType.Int64, 1000l).createMetric());
+
+			for (SPHAMetric metric : metrics.values()) {
+				payload.addMetric(
+						new MetricBuilder(metric.getName(), metric.getType(), metric.getValue()).createMetric());
+			}
+
+			for (SPHAFeature feature : features.values()) {
+				payload.addMetric(
+						new MetricBuilder(feature.getName(), MetricDataType.Template, feature.getTemplateDefinition())
+								.createMetric());
+
+			}
+
+			return payload;
 		}
-
-		return payload;
 
 	}
 
-	protected SparkplugBPayload createPayload() throws Exception {
+	public SparkplugBPayload createPayload() {
 
 		SparkplugBPayload payload = new SparkplugBPayload(new Date(), new ArrayList<Metric>(), getSeqNum(), newUUID(),
 				null);
@@ -87,7 +106,7 @@ public class BaseSpHANode {
 	protected SparkplugBPayload createSpHaMetricPayload(String name) throws Exception {
 
 		SparkplugBPayload outboundPayload = createPayload();
-		BaseSpHAMetric spHAMetric = getSpHAMetricByName(name);
+		SPHAMetric spHAMetric = getSpHAMetricByName(name);
 		if (spHAMetric == null) {
 			throw new SpHAMetricNotFoundException("No Metric with name '" + name + "', ignoring");
 		}
@@ -97,30 +116,32 @@ public class BaseSpHANode {
 		return outboundPayload;
 	}
 
-	public void addSpHAMetric(BaseSpHAMetric aMetric) {
+	public SPHAMetric createSpHAMetric(String name, MetricDataType dataType, Object initialValue) {
+		SPHAMetric aMetric = new SPHAMetric(name, dataType, initialValue);
 		metrics.put(aMetric.getName(), aMetric);
+		return aMetric;
 	}
 
-	public BaseSpHAMetric getSpHAMetricByName(String name) {
+	public SPHAMetric getSpHAMetricByName(String name) {
 		return metrics.get(name);
 	}
 
-	public BaseSpHAMetric updateSpHAMetricValue(String name, Object value) throws SpHAMetricNotFoundException {
-		BaseSpHAMetric spHAMetric = getSpHAMetricByName(name);
-		if (spHAMetric == null) {
-			throw new SpHAMetricNotFoundException("No Metric with name '" + name + "', ignoring");
-		}
-		return updateSpHAMetric(spHAMetric);
-	}
-	
-	public BaseSpHAMetric updateSpHAMetric(BaseSpHAMetric metric) throws SpHAMetricNotFoundException {
-		if(metrics.replace(metric.getName(), metric) == null) {
+	/*
+	 * public BaseSpHAMetric updateSpHAMetricValue(String name, Object value) throws
+	 * SpHAMetricNotFoundException { BaseSpHAMetric spHAMetric =
+	 * getSpHAMetricByName(name); if (spHAMetric == null) { throw new
+	 * SpHAMetricNotFoundException("No Metric with name '" + name + "', ignoring");
+	 * } return updateSpHAMetric(spHAMetric); }
+	 */
+
+	public SPHAMetric updateSpHAMetric(SPHAMetric metric) throws SpHAMetricNotFoundException {
+		if (metrics.replace(metric.getName(), metric) == null) {
 			throw new SpHAMetricNotFoundException("No Metric with name '" + metric.getName() + "', ignoring");
 		}
 		return metric;
 	}
 
-	public long getSeqNum() throws Exception {
+	public long getSeqNum() {
 		if (seq == 256) {
 			seq = 0;
 		}
@@ -166,14 +187,6 @@ public class BaseSpHANode {
 
 	public void setEdgeNode(String edgeNode) {
 		this.edgeNode = edgeNode;
-	}
-
-	public String getDeviceId() {
-		return deviceId;
-	}
-
-	public void setDeviceId(String deviceId) {
-		this.deviceId = deviceId;
 	}
 
 	public String getClientId() {

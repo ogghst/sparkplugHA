@@ -1,27 +1,29 @@
-/*
- * Licensed Materials - Property of Cirrus Link Solutions
- * Copyright (c) 2018-2020 Cirrus Link Solutions LLC - All Rights Reserved
- * Unauthorized copying of this file, via any medium is strictly prohibited
- * Proprietary and confidential
- */
-package it.nm.sparkplugha;
+package it.nm.sparkplugha.model;
 
 import org.eclipse.tahu.message.model.EdgeNodeDescriptor;
 
-public class EdgeNode {
+public class SPHANodeDescriptor {
 
-	private final String groupName;
-	private final String edgeNodeName;
-	private final EdgeNodeDescriptor edgeNodeDescriptor;
-
-	private boolean online;
+	private String groupName;
+	private String edgeNodeName;
+	private EdgeNodeDescriptor edgeNodeDescriptor;
+	private SPHANodeState state;
+	
+	public enum SPHANodeState {
+		UNINITIALIZED,
+		INIT,
+		ONLINE,
+		OFFLINE,
+		ERROR,
+	}
+	
 	private long lastSeqNumber;
 
-	public EdgeNode(String groupName, String edgeNodeName) {
+	public SPHANodeDescriptor(String groupName, String edgeNodeName) {
 		this.groupName = groupName;
 		this.edgeNodeName = edgeNodeName;
 		this.edgeNodeDescriptor = new EdgeNodeDescriptor(groupName, edgeNodeName);
-		this.online = false;
+		this.setState(SPHANodeState.UNINITIALIZED);
 		this.lastSeqNumber = 255;
 	}
 
@@ -35,14 +37,6 @@ public class EdgeNode {
 
 	public EdgeNodeDescriptor getEdgeNodeId() {
 		return edgeNodeDescriptor;
-	}
-
-	public boolean isOnline() {
-		return online;
-	}
-
-	public void setOnline(boolean online) {
-		this.online = online;
 	}
 
 	public long getLastSeqNumber() {
@@ -69,12 +63,20 @@ public class EdgeNode {
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
-		EdgeNode other = (EdgeNode) obj;
+		SPHANodeDescriptor other = (SPHANodeDescriptor) obj;
 		if (edgeNodeDescriptor == null) {
 			if (other.edgeNodeDescriptor != null)
 				return false;
 		} else if (!edgeNodeDescriptor.equals(other.edgeNodeDescriptor))
 			return false;
 		return true;
+	}
+
+	public SPHANodeState getState() {
+		return state;
+	}
+
+	public void setState(SPHANodeState state) {
+		this.state = state;
 	}
 }
