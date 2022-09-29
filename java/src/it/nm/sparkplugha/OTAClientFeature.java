@@ -9,16 +9,19 @@ import org.eclipse.tahu.message.model.Parameter;
 import org.eclipse.tahu.message.model.ParameterDataType;
 import org.eclipse.tahu.message.model.SparkplugBPayload;
 import org.eclipse.tahu.message.model.Template;
+import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.Metric.MetricBuilder;
 import org.eclipse.tahu.message.model.Template.TemplateBuilder;
 
 import it.nm.sparkplugha.model.SPHAFeature;
 
-public class OTAFeature extends SPHAFeature {
+public class OTAClientFeature extends SPHAFeature {
 
     List<Parameter> params = new ArrayList<Parameter>();
+    public static final String OTACLIENTREQUESTMETRIC = "OTA/Request";
+    public static final String OTACLIENTVERSION = "1.0.0";
 
-    public OTAFeature(BaseSpHANode node, String fwName, String fwVersion) throws SparkplugInvalidTypeException {
+    public OTAClientFeature(BaseSpHANode node, String fwName, String fwVersion) throws SparkplugInvalidTypeException {
 
 	super("OTA", node);
 	params.add(new Parameter("FWName", ParameterDataType.String, fwName));
@@ -26,9 +29,10 @@ public class OTAFeature extends SPHAFeature {
 
     }
 
+    @Override
     public Template getTemplateDefinition() {
 
-	return new TemplateBuilder().version("v1.0").templateRef("OTA").definition(true).addParameters(params)
+	return new TemplateBuilder().version(OTACLIENTVERSION).templateRef(OTACLIENTREQUESTMETRIC).definition(true).addParameters(params)
 		.createTemplate();
 
     }
@@ -39,11 +43,25 @@ public class OTAFeature extends SPHAFeature {
 
 	payload.addMetric(new MetricBuilder(getName(), MetricDataType.Template,
 
-		new TemplateBuilder().version("v1.0").templateRef("OTA").definition(false).addParameters(params)
+		new TemplateBuilder().version(OTACLIENTVERSION).templateRef(OTACLIENTREQUESTMETRIC).definition(false).addParameters(params)
 			.createTemplate())
 		.createMetric());
 	
 	return payload;
+
+    }
+
+    @Override
+    public void DataArrived(Metric metric) {
+
+	if(metric.getName() == OTAServerFeature.OTASERVERFWLISTMETRIC) {
+	    
+	}
+
+    }
+
+    @Override
+    public void CommandArrived(Metric metric) {
 
     }
 

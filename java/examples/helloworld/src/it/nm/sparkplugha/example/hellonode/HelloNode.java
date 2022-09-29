@@ -8,13 +8,14 @@ import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
 import org.eclipse.tahu.SparkplugException;
 import org.eclipse.tahu.SparkplugInvalidTypeException;
 import org.eclipse.tahu.message.model.SparkplugBPayload;
 
 import it.nm.sparkplugha.ConnectedSpHANode;
-import it.nm.sparkplugha.OTAFeature;
+import it.nm.sparkplugha.OTAClientFeature;
 import it.nm.sparkplugha.SPHAMetric;
 
 public class HelloNode extends ConnectedSpHANode {
@@ -23,7 +24,7 @@ public class HelloNode extends ConnectedSpHANode {
 
     private SPHAMetric helloWorldMetric;
 
-    private OTAFeature ota;
+    private OTAClientFeature ota;
 
     public static void main(String[] args) throws Exception {
 
@@ -62,6 +63,13 @@ public class HelloNode extends ConnectedSpHANode {
 
     }
 
+    @Override
+    public void messageArrived(String topic, MqttMessage message) throws Exception {
+
+	super.messageArrived(topic, message);
+
+    }
+
     public HelloNode() throws Exception {
 
 	super();
@@ -73,7 +81,7 @@ public class HelloNode extends ConnectedSpHANode {
 	setServerUsername("admin");
 	setServerPassword("changeme");
 
-	ota = new OTAFeature(this, "HelloFwName", "1.0.0");
+	ota = new OTAClientFeature(this, "HelloFwName", "1.0.0");
 	addFeature(ota);
 
 	helloWorldMetric = createSpHAMetric("helloWorldMetric", String, "uninitialized");

@@ -2,11 +2,15 @@ package it.nm.sparkplugha;
 
 import static org.eclipse.tahu.message.model.MetricDataType.Int64;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Hashtable;
 import java.util.logging.Logger;
 
+import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
+import org.eclipse.tahu.SparkplugException;
 import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.Metric.MetricBuilder;
 import org.eclipse.tahu.message.model.MetricDataType;
@@ -19,190 +23,259 @@ import it.nm.sparkplugha.model.SPHAFeature;
 
 public abstract class BaseSpHANode {
 
-	protected String hwVersion = "Emulated Hardware";
-	protected String swVersion = "v1.0.0";
-	protected static final String NAMESPACE = "spBv1.0";
-	protected String groupId = "Sparkplug B Home Automation Nodes";
-	protected String edgeNode = "NDEDGENODE";
-	protected String clientId = "NDCLIENTID";
+    protected String hwVersion = "Emulated Hardware";
+    protected String swVersion = "v1.0.0";
+    protected static final String NAMESPACE = "spBv1.0";
+    protected String groupId = "Sparkplug B Home Automation Nodes";
+    protected String edgeNode = "NDEDGENODE";
+    protected String clientId = "NDCLIENTID";
 
-	private int bdSeq = 0;
-	private int seq = 0;
+    private int bdSeq = 0;
+    private int seq = 0;
 
-	private Object seqLock = new Object();
+    private Object seqLock = new Object();
 
-	private Hashtable<String, SPHAMetric> metrics;
-	private Hashtable<String, SPHAFeature> features;
+    protected Hashtable<String, SPHAMetric> metrics;
+    protected Hashtable<String, SPHAFeature> features;
 
-	private SparkplugBPayload nodeBirthPayload;
+    private SparkplugBPayload nodeBirthPayload;
 
-	private final static Logger LOGGER = Logger.getLogger(BaseSpHANode.class.getName());
+    private final static Logger LOGGER = Logger.getLogger(BaseSpHANode.class.getName());
 
-	public BaseSpHANode() {
-		super();
-		metrics = new Hashtable<String, SPHAMetric>();
-		features = new Hashtable<String, SPHAFeature>();
-	}
+    public BaseSpHANode() {
 
-	protected void addFeature(SPHAFeature feature) {
-		features.put(feature.getName(), feature);
-	}
+	super();
+	metrics = new Hashtable<String, SPHAMetric>();
+	features = new Hashtable<String, SPHAFeature>();
 
-	protected SparkplugBPayload createNodeDeathPayload() throws Exception {
-		// Build up DEATH payload - note DEATH payloads don't have a regular sequence
-		// number
-		SparkplugBPayloadBuilder deathPayload = new SparkplugBPayloadBuilder().setTimestamp(new Date());
-		if (bdSeq == 256) {
-			bdSeq = 0;
-		}
-		deathPayload.addMetric(new MetricBuilder("bdSeq", Int64, (long) bdSeq).createMetric());
-		bdSeq++;
+    }
 
-		return deathPayload.createPayload();
+    protected void addFeature(SPHAFeature feature) {
 
-	}
+	features.put(feature.getName(), feature);
 
-	protected SparkplugBPayload createNodeBirthPayload() throws Exception {
+    }
 
-		synchronized (seqLock) {
-			// Reset the sequence number
-			seq = 0;
+    protected SparkplugBPayload createNodeDeathPayload() throws Exception {
 
-			// Create the BIRTH payload and set the position and other metrics
-			SparkplugBPayload payload = createPayload();
+	// Build up DEATH payload - note DEATH payloads don't have a regular sequence
+	// number
+	SparkplugBPayloadBuilder deathPayload = new SparkplugBPayloadBuilder().setTimestamp(new Date());
 
-			payload.addMetric(new MetricBuilder("bdSeq", Int64, (long) bdSeq).createMetric());
-			payload.addMetric(new MetricBuilder("Node Control/Rebirth", MetricDataType.Boolean, false).createMetric());
-			payload.addMetric(new MetricBuilder("Node Control/Reboot", MetricDataType.Boolean, false).createMetric());
-			payload.addMetric(
-					new MetricBuilder("Node Control/Next Server", MetricDataType.Boolean, false).createMetric());
-			payload.addMetric(new MetricBuilder("Node Control/Scan Rate", MetricDataType.Int64, 1000l).createMetric());
+	if (bdSeq == 256) {
 
-			for (SPHAMetric metric : metrics.values()) {
-				payload.addMetric(
-						new MetricBuilder(metric.getName(), metric.getType(), metric.getValue()).createMetric());
-			}
-
-			for (SPHAFeature feature : features.values()) {
-				payload.addMetric(
-						new MetricBuilder(feature.getName(), MetricDataType.Template, feature.getTemplateDefinition())
-								.createMetric());
-
-			}
-
-			return payload;
-		}
+	    bdSeq = 0;
 
 	}
 
-	public SparkplugBPayload createPayload() {
+	deathPayload.addMetric(new MetricBuilder("bdSeq", Int64, (long) bdSeq).createMetric());
+	bdSeq++;
 
-		SparkplugBPayload payload = new SparkplugBPayload(new Date(), new ArrayList<Metric>(), getSeqNum(), newUUID(),
-				null);
-		return payload;
+	return deathPayload.createPayload();
+
+    }
+
+    protected SparkplugBPayload createNodeBirthPayload() throws Exception {
+
+	synchronized (seqLock) {
+
+	    // Reset the sequence number
+	    seq = 0;
+
+	    // Create the BIRTH payload and set the position and other metrics
+	    SparkplugBPayload payload = createPayload();
+
+	    payload.addMetric(new MetricBuilder("bdSeq", Int64, (long) bdSeq).createMetric());
+	    payload.addMetric(new MetricBuilder("Node Control/Rebirth", MetricDataType.Boolean, false).createMetric());
+	    payload.addMetric(new MetricBuilder("Node Control/Reboot", MetricDataType.Boolean, false).createMetric());
+	    payload.addMetric(
+		    new MetricBuilder("Node Control/Next Server", MetricDataType.Boolean, false).createMetric());
+	    payload.addMetric(new MetricBuilder("Node Control/Scan Rate", MetricDataType.Int64, 1000l).createMetric());
+
+	    for (SPHAMetric metric : metrics.values()) {
+
+		payload.addMetric(
+			new MetricBuilder(metric.getName(), metric.getType(), metric.getValue()).createMetric());
+
+	    }
+
+	    for (SPHAFeature feature : features.values()) {
+
+		payload.addMetric(
+			new MetricBuilder(feature.getName(), MetricDataType.Template, feature.getTemplateDefinition())
+				.createMetric());
+
+	    }
+
+	    return payload;
 
 	}
 
-	protected SparkplugBPayload createSpHaMetricPayload(String name) throws Exception {
+    }
 
-		SparkplugBPayload outboundPayload = createPayload();
-		SPHAMetric spHAMetric = getSpHAMetricByName(name);
-		if (spHAMetric == null) {
-			throw new SpHAMetricNotFoundException("No Metric with name '" + name + "', ignoring");
-		}
+    public SparkplugBPayload createPayload() {
 
-		outboundPayload.addMetric(
-				new MetricBuilder(spHAMetric.getName(), spHAMetric.getType(), spHAMetric.getValue()).createMetric());
-		return outboundPayload;
+	SparkplugBPayload payload = new SparkplugBPayload(new Date(), new ArrayList<Metric>(), getSeqNum(), newUUID(),
+		null);
+	return payload;
+
+    }
+
+    protected SparkplugBPayload createSpHaMetricPayload(String name) throws Exception {
+
+	SparkplugBPayload outboundPayload = createPayload();
+	SPHAMetric spHAMetric = getSpHAMetricByName(name);
+
+	if (spHAMetric == null) {
+
+	    throw new SpHAMetricNotFoundException("No Metric with name '" + name + "', ignoring");
+
 	}
 
-	public SPHAMetric createSpHAMetric(String name, MetricDataType dataType, Object initialValue) {
-		SPHAMetric aMetric = new SPHAMetric(name, dataType, initialValue);
-		metrics.put(aMetric.getName(), aMetric);
-		return aMetric;
+	outboundPayload.addMetric(
+		new MetricBuilder(spHAMetric.getName(), spHAMetric.getType(), spHAMetric.getValue()).createMetric());
+	return outboundPayload;
+
+    }
+
+    public SPHAMetric createSpHAMetric(String name, MetricDataType dataType, Object initialValue) {
+
+	SPHAMetric aMetric = new SPHAMetric(name, dataType, initialValue);
+	metrics.put(aMetric.getName(), aMetric);
+	return aMetric;
+
+    }
+
+    public SPHAMetric getSpHAMetricByName(String name) {
+
+	return metrics.get(name);
+
+    }
+
+    /*
+     * public BaseSpHAMetric updateSpHAMetricValue(String name, Object value) throws
+     * SpHAMetricNotFoundException { BaseSpHAMetric spHAMetric =
+     * getSpHAMetricByName(name); if (spHAMetric == null) { throw new
+     * SpHAMetricNotFoundException("No Metric with name '" + name + "', ignoring");
+     * } return updateSpHAMetric(spHAMetric); }
+     */
+
+    public SPHAMetric updateSpHAMetric(SPHAMetric metric) throws SpHAMetricNotFoundException {
+
+	if (metrics.replace(metric.getName(), metric) == null) {
+
+	    throw new SpHAMetricNotFoundException("No Metric with name '" + metric.getName() + "', ignoring");
+
 	}
 
-	public SPHAMetric getSpHAMetricByName(String name) {
-		return metrics.get(name);
+	return metric;
+
+    }
+
+    public long getSeqNum() {
+
+	if (seq == 256) {
+
+	    seq = 0;
+
 	}
 
-	/*
-	 * public BaseSpHAMetric updateSpHAMetricValue(String name, Object value) throws
-	 * SpHAMetricNotFoundException { BaseSpHAMetric spHAMetric =
-	 * getSpHAMetricByName(name); if (spHAMetric == null) { throw new
-	 * SpHAMetricNotFoundException("No Metric with name '" + name + "', ignoring");
-	 * } return updateSpHAMetric(spHAMetric); }
-	 */
+	return seq++;
 
-	public SPHAMetric updateSpHAMetric(SPHAMetric metric) throws SpHAMetricNotFoundException {
-		if (metrics.replace(metric.getName(), metric) == null) {
-			throw new SpHAMetricNotFoundException("No Metric with name '" + metric.getName() + "', ignoring");
-		}
-		return metric;
-	}
+    }
 
-	public long getSeqNum() {
-		if (seq == 256) {
-			seq = 0;
-		}
-		return seq++;
-	}
+    public long resetSeqNum() {
 
-	public long resetSeqNum() {
-		seq = 0;
-		return seq;
-	}
+	seq = 0;
+	return seq;
 
-	protected String newUUID() {
-		return java.util.UUID.randomUUID().toString();
-	}
+    }
 
-	public String getHwVersion() {
-		return hwVersion;
-	}
+    protected String newUUID() {
 
-	public void setHwVersion(String hwVersion) {
-		this.hwVersion = hwVersion;
-	}
+	return java.util.UUID.randomUUID().toString();
 
-	public String getSwVersion() {
-		return swVersion;
-	}
+    }
 
-	public void setSwVersion(String swVersion) {
-		this.swVersion = swVersion;
-	}
+    public String getHwVersion() {
 
-	public String getGroupId() {
-		return groupId;
-	}
+	return hwVersion;
 
-	public void setGroupId(String groupId) {
-		this.groupId = groupId;
-	}
+    }
 
-	public String getEdgeNode() {
-		return edgeNode;
-	}
+    public void setHwVersion(String hwVersion) {
 
-	public void setEdgeNode(String edgeNode) {
-		this.edgeNode = edgeNode;
-	}
+	this.hwVersion = hwVersion;
 
-	public String getClientId() {
-		return clientId;
-	}
+    }
 
-	public void setClientId(String clientId) {
-		this.clientId = clientId;
-	}
+    public String getSwVersion() {
 
-	public SparkplugBPayload getNodeBirthPayload() {
-		return nodeBirthPayload;
-	}
+	return swVersion;
 
-	public void setNodeBirthPayload(SparkplugBPayload nodeBirthPayload) {
-		this.nodeBirthPayload = nodeBirthPayload;
-	}
+    }
 
+    public void setSwVersion(String swVersion) {
+
+	this.swVersion = swVersion;
+
+    }
+
+    public String getGroupId() {
+
+	return groupId;
+
+    }
+
+    public void setGroupId(String groupId) {
+
+	this.groupId = groupId;
+
+    }
+
+    public String getEdgeNode() {
+
+	return edgeNode;
+
+    }
+
+    public void setEdgeNode(String edgeNode) {
+
+	this.edgeNode = edgeNode;
+
+    }
+
+    public String getClientId() {
+
+	return clientId;
+
+    }
+
+    public void setClientId(String clientId) {
+
+	this.clientId = clientId;
+
+    }
+
+    public SparkplugBPayload getNodeBirthPayload() {
+
+	return nodeBirthPayload;
+
+    }
+
+    public void setNodeBirthPayload(SparkplugBPayload nodeBirthPayload) {
+
+	this.nodeBirthPayload = nodeBirthPayload;
+
+    }
+
+    public abstract void publishNodeData(SparkplugBPayload payload) throws Exception;
+
+    public abstract void publishNodeCommand(SparkplugBPayload payload) throws Exception;
+
+    public abstract void publishFeatureData(SparkplugBPayload payload) throws Exception;
+
+    public abstract void publishFeatureCommand(SparkplugBPayload payload) throws Exception;
+
+    
 }
