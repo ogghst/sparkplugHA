@@ -1,4 +1,4 @@
-package it.nm.sparkplugha;
+package it.nm.sparkplugha.model;
 
 import static org.eclipse.tahu.message.model.MetricDataType.Int64;
 
@@ -20,9 +20,8 @@ import org.eclipse.tahu.message.model.SparkplugBPayload.SparkplugBPayloadBuilder
 import org.eclipse.tahu.message.model.Template.TemplateBuilder;
 
 import it.nm.sparkplugha.exceptions.SpHAMetricNotFoundException;
-import it.nm.sparkplugha.model.SPHAFeature;
 
-public abstract class BaseSpHANode {
+public abstract class SPHANode {
 
     protected String hwVersion = "Emulated Hardware";
     protected String swVersion = "v1.0.0";
@@ -41,9 +40,9 @@ public abstract class BaseSpHANode {
 
     private SparkplugBPayload nodeBirthPayload;
 
-    private final static Logger LOGGER = Logger.getLogger(BaseSpHANode.class.getName());
+    private final static Logger LOGGER = Logger.getLogger(SPHANode.class.getName());
 
-    public BaseSpHANode() {
+    public SPHANode() {
 
 	super();
 	metrics = new Hashtable<String, SPHAMetric>();

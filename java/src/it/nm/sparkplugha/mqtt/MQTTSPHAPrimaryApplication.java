@@ -1,4 +1,4 @@
-package it.nm.sparkplugha;
+package it.nm.sparkplugha.mqtt;
 
 import java.util.Date;
 import java.util.Map;
@@ -34,7 +34,7 @@ import org.eclipse.tahu.util.TopicUtil;
 import it.nm.sparkplugha.model.SPHANodeDescriptor;
 import it.nm.sparkplugha.model.SPHANodeDescriptor.SPHANodeState;
 
-public class ConnectedSpHAPrimaryApplication implements MqttCallbackExtended {
+public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 
     private class RebirthDelayTask extends TimerTask {
 
@@ -60,7 +60,7 @@ public class ConnectedSpHAPrimaryApplication implements MqttCallbackExtended {
     }
 
     private static final String HOST_NAMESPACE = "STATE";
-    private final static Logger LOGGER = Logger.getLogger(ConnectedSpHAPrimaryApplication.class.getName());
+    private final static Logger LOGGER = Logger.getLogger(MQTTSPHAPrimaryApplication.class.getName());
     public static final String NAMESPACE = "spBv1.0";
     protected MqttClient client;
     private String hostId = "undefinedHostId";
@@ -82,7 +82,7 @@ public class ConnectedSpHAPrimaryApplication implements MqttCallbackExtended {
 
     private boolean USING_REAL_TLS = false;
 
-    public ConnectedSpHAPrimaryApplication() {
+    public MQTTSPHAPrimaryApplication() {
 
 	edgeNodeMap = new ConcurrentHashMap<>();
 	rebirthTimers = new ConcurrentHashMap<>();

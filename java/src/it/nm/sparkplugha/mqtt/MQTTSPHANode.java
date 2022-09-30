@@ -1,4 +1,4 @@
-package it.nm.sparkplugha;
+package it.nm.sparkplugha.mqtt;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -29,11 +29,13 @@ import org.eclipse.tahu.message.model.Template;
 import org.eclipse.tahu.util.CompressionAlgorithm;
 import org.eclipse.tahu.util.PayloadUtil;
 
+import it.nm.sparkplugha.model.SPHANode;
+import it.nm.sparkplugha.Utils;
 import it.nm.sparkplugha.model.SPHAFeature;
 
-public abstract class ConnectedSpHANode extends BaseSpHANode implements MqttCallbackExtended {
+public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExtended {
 
-    private final static Logger LOGGER = Logger.getLogger(ConnectedSpHANode.class.getName());
+    private final static Logger LOGGER = Logger.getLogger(MQTTSPHANode.class.getName());
 
     protected MqttClient client;
     private CompressionAlgorithm compressionAlgorithm = CompressionAlgorithm.GZIP;

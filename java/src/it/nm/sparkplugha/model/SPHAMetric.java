@@ -1,4 +1,4 @@
-package it.nm.sparkplugha;
+package it.nm.sparkplugha.model;
 
 import org.eclipse.tahu.message.model.MetricDataType;
 

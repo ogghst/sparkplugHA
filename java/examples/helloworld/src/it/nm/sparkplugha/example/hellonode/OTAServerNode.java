@@ -14,12 +14,12 @@ import org.eclipse.tahu.SparkplugException;
 import org.eclipse.tahu.SparkplugInvalidTypeException;
 import org.eclipse.tahu.message.model.SparkplugBPayload;
 
-import it.nm.sparkplugha.ConnectedSpHANode;
-import it.nm.sparkplugha.OTAClientFeature;
-import it.nm.sparkplugha.OTAServerFeature;
-import it.nm.sparkplugha.SPHAMetric;
+import it.nm.sparkplugha.features.OTAClientFeature;
+import it.nm.sparkplugha.features.OTAServerFeature;
+import it.nm.sparkplugha.model.SPHAMetric;
+import it.nm.sparkplugha.mqtt.MQTTSPHANode;
 
-public class OTAServerNode extends ConnectedSpHANode {
+public class OTAServerNode extends MQTTSPHANode {
 
     private final static Logger LOGGER = Logger.getLogger(OTAServerNode.class.getName());
 

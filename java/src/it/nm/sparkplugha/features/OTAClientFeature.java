@@ -1,4 +1,4 @@
-package it.nm.sparkplugha;
+package it.nm.sparkplugha.features;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +14,7 @@ import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.Metric.MetricBuilder;
 import org.eclipse.tahu.message.model.Template.TemplateBuilder;
 
+import it.nm.sparkplugha.model.SPHANode;
 import it.nm.sparkplugha.model.SPHAFeature;
 
 public class OTAClientFeature extends SPHAFeature {
@@ -29,7 +30,7 @@ public class OTAClientFeature extends SPHAFeature {
 
     public static final String DEVICETOPIC = "OTAClient";
 
-    public OTAClientFeature(BaseSpHANode node, String fwName, String fwVersion) throws SparkplugInvalidTypeException {
+    public OTAClientFeature(SPHANode node, String fwName, String fwVersion) throws SparkplugInvalidTypeException {
 
 	super("OTAClient", node);
 	params.add(new Parameter(FWNAMEPROPERTY, ParameterDataType.String, fwName));

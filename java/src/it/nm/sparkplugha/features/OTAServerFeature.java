@@ -1,4 +1,4 @@
-package it.nm.sparkplugha;
+package it.nm.sparkplugha.features;
 
 import static org.eclipse.tahu.message.model.MetricDataType.Int64;
 import static org.eclipse.tahu.message.model.MetricDataType.Template;
@@ -17,6 +17,7 @@ import org.eclipse.tahu.message.model.Metric.MetricBuilder;
 import org.eclipse.tahu.message.model.MetricDataType;
 import org.eclipse.tahu.message.model.Template.TemplateBuilder;
 
+import it.nm.sparkplugha.model.SPHANode;
 import it.nm.sparkplugha.model.SPHAFeature;
 
 public class OTAServerFeature extends SPHAFeature {
@@ -33,7 +34,7 @@ public class OTAServerFeature extends SPHAFeature {
 
     public static final String DEVICETOPIC = "OTAServer";
 
-    public OTAServerFeature(BaseSpHANode node, String fwName, String fwVersion) throws Exception {
+    public OTAServerFeature(SPHANode node, String fwName, String fwVersion) throws Exception {
 
 	super("OTAServer", node);
 	params.add(new Parameter(FWNAMEPROPERTY, ParameterDataType.String, fwName));

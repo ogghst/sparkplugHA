@@ -3,11 +3,9 @@ package it.nm.sparkplugha.model;
 import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.Template;
 
-import it.nm.sparkplugha.BaseSpHANode;
-
 public abstract class SPHAFeature {
 
-    public SPHAFeature(String name, BaseSpHANode node) {
+    public SPHAFeature(String name, SPHANode node) {
 
 	this.node = node;
 	this.name = name;
@@ -24,7 +22,7 @@ public abstract class SPHAFeature {
 
     }
 
-    public BaseSpHANode getNode() {
+    public SPHANode getNode() {
 
 	return node;
 
@@ -32,7 +30,7 @@ public abstract class SPHAFeature {
 
     private String name;
 
-    private BaseSpHANode node;
+    private SPHANode node;
 
     public abstract Template getTemplateDefinition();
 

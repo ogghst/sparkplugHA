@@ -4,7 +4,7 @@
  * Unauthorized copying of this file, via any medium is strictly prohibited
  * Proprietary and confidential
  */
-package it.nm.sparkplugha;
+package it.nm.sparkplugha.mqtt;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -32,7 +32,7 @@ public class MQTTPublisher implements Runnable {
 	private boolean compression = false;
 	private CompressionAlgorithm compressionAlgorithm = CompressionAlgorithm.GZIP;
 	
-	private final static Logger LOGGER = Logger.getLogger(ConnectedSpHANode.class.getName());
+	private final static Logger LOGGER = Logger.getLogger(MQTTSPHANode.class.getName());
 
 	private byte[] compress(byte[] bytes) {
 
