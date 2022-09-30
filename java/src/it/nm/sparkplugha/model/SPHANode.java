@@ -2,22 +2,17 @@ package it.nm.sparkplugha.model;
 
 import static org.eclipse.tahu.message.model.MetricDataType.Int64;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Hashtable;
 import java.util.logging.Logger;
 
-import org.eclipse.paho.client.mqttv3.MqttException;
-import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
-import org.eclipse.tahu.SparkplugException;
 import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.Metric.MetricBuilder;
 import org.eclipse.tahu.message.model.MetricDataType;
 import org.eclipse.tahu.message.model.SparkplugBPayload;
 import org.eclipse.tahu.message.model.SparkplugBPayload.SparkplugBPayloadBuilder;
-import org.eclipse.tahu.message.model.Template.TemplateBuilder;
 
 import it.nm.sparkplugha.exceptions.SpHAMetricNotFoundException;
 
@@ -62,7 +57,7 @@ public abstract class SPHANode {
 
     }
 
-    protected SparkplugBPayload createNodeDeathPayload() throws Exception {
+    public SparkplugBPayload createNodeDeathPayload() throws Exception {
 
 	// Build up DEATH payload - note DEATH payloads don't have a regular sequence
 	// number
@@ -81,7 +76,7 @@ public abstract class SPHANode {
 
     }
 
-    protected SparkplugBPayload createNodeBirthPayload() throws Exception {
+    public SparkplugBPayload createNodeBirthPayload() throws Exception {
 
 	synchronized (seqLock) {
 
@@ -127,14 +122,13 @@ public abstract class SPHANode {
 
     }
 
-    protected SparkplugBPayload createSpHaMetricPayload(String name) throws Exception {
+    public SparkplugBPayload createSPHAMetricPayload(SPHAMetric spHAMetric) throws Exception {
 
 	SparkplugBPayload outboundPayload = createPayload();
-	SPHAMetric spHAMetric = getSpHAMetricByName(name);
 
 	if (spHAMetric == null) {
 
-	    throw new SpHAMetricNotFoundException("No Metric with name '" + name + "', ignoring");
+	    throw new SpHAMetricNotFoundException("No Metric, ignoring");
 
 	}
 
@@ -144,7 +138,7 @@ public abstract class SPHANode {
 
     }
 
-    public SPHAMetric createSpHAMetric(String name, MetricDataType dataType, Object initialValue) {
+    public SPHAMetric createSPHAMetric(String name, MetricDataType dataType, Object initialValue) {
 
 	SPHAMetric aMetric = new SPHAMetric(name, dataType, initialValue);
 	metrics.put(aMetric.getName(), aMetric);
@@ -152,7 +146,7 @@ public abstract class SPHANode {
 
     }
 
-    public SPHAMetric getSpHAMetricByName(String name) {
+    public SPHAMetric getSPHAMetricByName(String name) {
 
 	return metrics.get(name);
 
@@ -166,13 +160,15 @@ public abstract class SPHANode {
      * } return updateSpHAMetric(spHAMetric); }
      */
 
-    public SPHAMetric updateSpHAMetric(SPHAMetric metric) throws SpHAMetricNotFoundException {
+    public SPHAMetric updateSPHAMetric(SPHAMetric metric) throws Exception {
 
 	if (metrics.replace(metric.getName(), metric) == null) {
 
 	    throw new SpHAMetricNotFoundException("No Metric with name '" + metric.getName() + "', ignoring");
 
 	}
+
+	publishNodeData(createSPHAMetricPayload(metric));
 
 	return metric;
 
@@ -197,7 +193,7 @@ public abstract class SPHANode {
 
     }
 
-    protected String newUUID() {
+    private String newUUID() {
 
 	return java.util.UUID.randomUUID().toString();
 

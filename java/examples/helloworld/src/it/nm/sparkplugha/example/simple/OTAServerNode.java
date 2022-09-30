@@ -1,20 +1,9 @@
-package it.nm.sparkplugha.example.hellonode;
+package it.nm.sparkplugha.example.simple;
 
-import static org.eclipse.tahu.message.model.MetricDataType.String;
-
-import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
-import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
-import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
-import org.eclipse.tahu.SparkplugException;
-import org.eclipse.tahu.SparkplugInvalidTypeException;
-import org.eclipse.tahu.message.model.SparkplugBPayload;
 
-import it.nm.sparkplugha.features.OTAClientFeature;
 import it.nm.sparkplugha.features.OTAServerFeature;
 import it.nm.sparkplugha.model.SPHAMetric;
 import it.nm.sparkplugha.mqtt.MQTTSPHANode;

@@ -1,5 +1,7 @@
 package it.nm.sparkplugha.mqtt;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
 import java.util.Timer;
@@ -17,6 +19,7 @@ import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.tahu.SparkplugParsingException;
 import org.eclipse.tahu.message.SparkplugBPayloadDecoder;
@@ -31,8 +34,9 @@ import org.eclipse.tahu.message.model.Topic;
 import org.eclipse.tahu.util.CompressionAlgorithm;
 import org.eclipse.tahu.util.TopicUtil;
 
-import it.nm.sparkplugha.model.SPHANodeDescriptor;
-import it.nm.sparkplugha.model.SPHANodeDescriptor.SPHANodeState;
+import it.nm.sparkplugha.model.SPHAEdgeNodeDescriptor;
+import it.nm.sparkplugha.model.SPHAEdgeNodeDescriptor.SPHANodeState;
+import it.nm.sparkplugha.model.SPHAEdgeNodeDescriptorKey;
 
 public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 
@@ -65,7 +69,7 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
     protected MqttClient client;
     private String hostId = "undefinedHostId";
     private CompressionAlgorithm compressionAlgorithm = CompressionAlgorithm.GZIP;
-    private final Map<EdgeNodeDescriptor, SPHANodeDescriptor> edgeNodeMap;
+    private final Map<SPHAEdgeNodeDescriptorKey, SPHAEdgeNodeDescriptor> edgeNodeMap;
     private ExecutorService executor;
     private String primaryHostId = "UndefinedPrimaryHostId";
     private final Map<EdgeNodeDescriptor, Timer> rebirthTimers;
@@ -163,8 +167,17 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
     @Override
     public void deliveryComplete(IMqttDeliveryToken token) {
 
-	LOGGER.fine("Published message: " + token.getTopics());
+	try {
 
+	    LOGGER.fine("Published message: " + Arrays.toString(token.getTopics()) + " - " +
+
+	    	new String(token.getMessage().getPayload(), StandardCharsets.UTF_8));
+
+	} catch (Exception e) {
+
+	    LOGGER.fine("Published message: " + Arrays.toString(token.getTopics()) + " - unparseable payload");
+
+	}
     }
 
     public String getHostId() {
@@ -191,7 +204,7 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 
     }
 
-    private boolean handleSeqNumberCheck(SPHANodeDescriptor edgeNode, long incomingSeqNum) {
+    private boolean handleSeqNumberCheck(SPHAEdgeNodeDescriptor edgeNode, long incomingSeqNum) {
 
 	// Get the last stored sequence number
 	Long storedSeqNum = edgeNode.getLastSeqNumber();
@@ -204,7 +217,7 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 	    // Sequence number is INVALID, set Edge Node offline
 	    edgeNode.setState(SPHANodeState.OFFLINE);
 	    // Request a rebirth
-	    requestRebirth(edgeNode.getEdgeNodeId());
+	    requestRebirth(edgeNode);
 	    return false;
 
 	} else {
@@ -252,20 +265,21 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 	    SparkplugBPayload inboundPayload = decoder.buildFromByteArray(message.getPayload());
 
 	    // Get the EdgeNodeDescriptor
-	    EdgeNodeDescriptor edgeNodeDescriptor = new EdgeNodeDescriptor(topic.getGroupId(), topic.getEdgeNodeId());
+	    SPHAEdgeNodeDescriptorKey edgeNodeDescriptorKey = new SPHAEdgeNodeDescriptorKey(topic.getGroupId(),
+		    topic.getEdgeNodeId());
 
 	    // Special case for NBIRTH
-	    SPHANodeDescriptor edgeNode = edgeNodeMap.get(edgeNodeDescriptor);
+	    SPHAEdgeNodeDescriptor edgeNodeDescriptor = edgeNodeMap.get(edgeNodeDescriptorKey);
 
 	    if (topic.getType().equals(MessageType.NBIRTH)) {
 
-		edgeNode = new SPHANodeDescriptor(topic.getGroupId(), topic.getEdgeNodeId());
-		edgeNodeMap.put(edgeNodeDescriptor, edgeNode);
+		edgeNodeDescriptor = new SPHAEdgeNodeDescriptor(topic.getGroupId(), topic.getEdgeNodeId());
+		edgeNodeMap.put(edgeNodeDescriptorKey, edgeNodeDescriptor);
 
 	    }
 
 	    // Failed to handle the message
-	    if (edgeNode == null) {
+	    if (edgeNodeDescriptor == null) {
 
 		LOGGER.warning("Unexpected message on topic " + topic + " - requesting Rebirth");
 		requestRebirth(edgeNodeDescriptor);
@@ -274,14 +288,13 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 	    }
 
 	    // Check the sequence number
-	    if (handleSeqNumberCheck(edgeNode, inboundPayload.getSeq())) {
+	    if (handleSeqNumberCheck(edgeNodeDescriptor, inboundPayload.getSeq())) {
 
-		LOGGER.info("Validated sequence number on topic: " + topic);
+		LOGGER.fine("Validated sequence number on topic: " + topic);
 
-		// Iterate over the metrics looking only for file metrics
 		for (Metric metric : inboundPayload.getMetrics()) {
 
-		    LOGGER.info("Metric: " + metric.getName() + " - type: " + metric.getDataType() + " - value: "
+		    LOGGER.fine("Metric: " + metric.getName() + " - type: " + metric.getDataType() + " - value: "
 			    + metric.getValue());
 
 		}
@@ -330,7 +343,7 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 
     }
 
-    private void requestRebirth(EdgeNodeDescriptor edgeNodeDescriptor) {
+    private void requestRebirth(SPHAEdgeNodeDescriptor edgeNodeDescriptor) {
 
 	try {
 
@@ -343,7 +356,7 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 		rebirthTimers.put(edgeNodeDescriptor, rebirthDelayTimer);
 		rebirthDelayTimer.schedule(new RebirthDelayTask(edgeNodeDescriptor), 5000);
 
-		SPHANodeDescriptor edgeNode = edgeNodeMap.get(edgeNodeDescriptor);
+		SPHAEdgeNodeDescriptor edgeNode = edgeNodeMap.get(edgeNodeDescriptor);
 
 		if (edgeNode != null) {
 

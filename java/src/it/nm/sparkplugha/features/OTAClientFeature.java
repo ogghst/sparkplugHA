@@ -5,17 +5,17 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import org.eclipse.tahu.SparkplugInvalidTypeException;
+import org.eclipse.tahu.message.model.Metric;
+import org.eclipse.tahu.message.model.Metric.MetricBuilder;
 import org.eclipse.tahu.message.model.MetricDataType;
 import org.eclipse.tahu.message.model.Parameter;
 import org.eclipse.tahu.message.model.ParameterDataType;
 import org.eclipse.tahu.message.model.SparkplugBPayload;
 import org.eclipse.tahu.message.model.Template;
-import org.eclipse.tahu.message.model.Metric;
-import org.eclipse.tahu.message.model.Metric.MetricBuilder;
 import org.eclipse.tahu.message.model.Template.TemplateBuilder;
 
-import it.nm.sparkplugha.model.SPHANode;
 import it.nm.sparkplugha.model.SPHAFeature;
+import it.nm.sparkplugha.model.SPHANode;
 
 public class OTAClientFeature extends SPHAFeature {
 

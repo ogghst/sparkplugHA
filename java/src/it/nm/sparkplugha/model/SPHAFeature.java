@@ -11,9 +11,11 @@ public abstract class SPHAFeature {
 	this.name = name;
 
     }
-    
+
     public abstract String getTopic();
+
     public abstract String[] getListeningDeviceDataTopics();
+
     public abstract String[] getListeningDeviceCommandTopics();
 
     public String getName() {

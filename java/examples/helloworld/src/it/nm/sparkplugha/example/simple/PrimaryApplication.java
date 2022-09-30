@@ -1,10 +1,7 @@
-package it.nm.sparkplugha.example.hellonode;
-
-import static org.eclipse.tahu.message.model.MetricDataType.String;
+package it.nm.sparkplugha.example.simple;
 
 import java.util.logging.Logger;
 
-import it.nm.sparkplugha.model.SPHAMetric;
 import it.nm.sparkplugha.mqtt.MQTTSPHAPrimaryApplication;
 
 public class PrimaryApplication extends MQTTSPHAPrimaryApplication {

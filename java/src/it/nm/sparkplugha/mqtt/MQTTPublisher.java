@@ -23,105 +23,137 @@ import org.eclipse.tahu.util.PayloadUtil;
 
 public class MQTTPublisher implements Runnable {
 
-	private final MqttClient client;
-	private final String topic;
-	private final byte[] bytePayload;
-	private final SparkplugBPayload sparkplugPayload;
-	private final int qos;
-	private final boolean retained;
-	private boolean compression = false;
-	private CompressionAlgorithm compressionAlgorithm = CompressionAlgorithm.GZIP;
-	
-	private final static Logger LOGGER = Logger.getLogger(MQTTSPHANode.class.getName());
+    private final MqttClient client;
+    private final String topic;
+    private final byte[] bytePayload;
+    private final SparkplugBPayload sparkplugPayload;
+    private final int qos;
+    private final boolean retained;
+    private boolean compression = false;
+    private CompressionAlgorithm compressionAlgorithm = CompressionAlgorithm.GZIP;
 
-	private byte[] compress(byte[] bytes) {
+    private final static Logger LOGGER = Logger.getLogger(MQTTSPHANode.class.getName());
 
-		Deflater compressor = new Deflater(Deflater.BEST_COMPRESSION, true);
+    private byte[] compress(byte[] bytes) {
 
-		// Set the input for the compressor
-		compressor.setInput(bytes);
+	Deflater compressor = new Deflater(Deflater.BEST_COMPRESSION, true);
 
-		// Call the finish() method to indicate that we have
-		// no more input for the compressor object
-		compressor.finish();
+	// Set the input for the compressor
+	compressor.setInput(bytes);
 
-		// Compress the data
-		ByteArrayOutputStream bao = new ByteArrayOutputStream();
-		byte[] readBuffer = new byte[1024];
+	// Call the finish() method to indicate that we have
+	// no more input for the compressor object
+	compressor.finish();
 
-		while (!compressor.finished()) {
-			int readCount = compressor.deflate(readBuffer);
-			if (readCount > 0) {
-				// Write compressed data to the output stream
-				bao.write(readBuffer, 0, readCount);
-			}
-		}
+	// Compress the data
+	ByteArrayOutputStream bao = new ByteArrayOutputStream();
+	byte[] readBuffer = new byte[1024];
 
-		// End the compressor
-		compressor.end();
+	while (!compressor.finished()) {
 
-		// Return the written bytes from output stream
-		return bao.toByteArray();
+	    int readCount = compressor.deflate(readBuffer);
+
+	    if (readCount > 0) {
+
+		// Write compressed data to the output stream
+		bao.write(readBuffer, 0, readCount);
+
+	    }
 
 	}
 
-	public MQTTPublisher(MqttClient client, String topic, byte[] bytePayload, int qos, boolean retained,
-			boolean compression) {
-		this.client = client;
-		this.topic = topic;
-		this.bytePayload = bytePayload;
-		this.sparkplugPayload = null;
-		this.qos = qos;
-		this.retained = retained;
-		this.compression = compression;
+	// End the compressor
+	compressor.end();
+
+	// Return the written bytes from output stream
+	return bao.toByteArray();
+
+    }
+
+    public MQTTPublisher(MqttClient client, String topic, byte[] bytePayload, int qos, boolean retained,
+	    boolean compression) {
+
+	this.client = client;
+	this.topic = topic;
+	this.bytePayload = bytePayload;
+	this.sparkplugPayload = null;
+	this.qos = qos;
+	this.retained = retained;
+	this.compression = compression;
+
+    }
+
+    public MQTTPublisher(MqttClient client, String topic, SparkplugBPayload sparkplugPayload, int qos, boolean retained,
+	    boolean compression) {
+
+	this.client = client;
+	this.topic = topic;
+	this.bytePayload = null;
+	this.sparkplugPayload = sparkplugPayload;
+	this.qos = qos;
+	this.retained = retained;
+	this.compression = compression;
+
+    }
+
+    public void run() {
+
+	try {
+
+	    publish();
+
+	} catch (MqttPersistenceException e) {
+
+	    e.printStackTrace();
+
+	} catch (MqttException e) {
+
+	    e.printStackTrace();
+
+	} catch (Exception e) {
+
+	    e.printStackTrace();
+
 	}
 
-	public MQTTPublisher(MqttClient client, String topic, SparkplugBPayload sparkplugPayload, int qos, boolean retained,
-			boolean compression) {
-		this.client = client;
-		this.topic = topic;
-		this.bytePayload = null;
-		this.sparkplugPayload = sparkplugPayload;
-		this.qos = qos;
-		this.retained = retained;
-		this.compression = compression;
+    }
+
+    public void publish() throws MqttException, MqttPersistenceException, IOException, SparkplugException {
+
+	if (bytePayload != null) {
+
+	    if (compression) {
+
+		client.publish(topic, compress(bytePayload), qos, retained);
+
+	    } else {
+
+		client.publish(topic, bytePayload, qos, retained);
+
+	    }
+
+	} else if (sparkplugPayload != null) {
+
+	    sparkplugPayload.setTimestamp(new Date());
+	    SparkplugBPayloadEncoder encoder = new SparkplugBPayloadEncoder();
+
+	    if (compression) {
+
+		client.publish(topic, encoder.getBytes(PayloadUtil.compress(sparkplugPayload, compressionAlgorithm)),
+			qos, retained);
+
+	    } else {
+
+		client.publish(topic, encoder.getBytes(sparkplugPayload), qos, retained);
+
+	    }
+
+	} else {
+
+	    client.publish(topic, null, 0, false);
+
 	}
 
-	public void run() {
-		try {
-			publish();
-		} catch (MqttPersistenceException e) {
-			e.printStackTrace();
-		} catch (MqttException e) {
-			e.printStackTrace();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
+    }
 
-	public void publish() throws MqttException, MqttPersistenceException, IOException, SparkplugException {
-		if (bytePayload != null) {
-
-			if (compression) {
-				client.publish(topic, compress(bytePayload), qos, retained);
-			} else {
-				client.publish(topic, bytePayload, qos, retained);
-			}
-			
-		} else if (sparkplugPayload != null) {
-			sparkplugPayload.setTimestamp(new Date());
-			SparkplugBPayloadEncoder encoder = new SparkplugBPayloadEncoder();
-
-			if (compression) {
-				client.publish(topic,
-						encoder.getBytes(PayloadUtil.compress(sparkplugPayload, compressionAlgorithm)), qos,
-						retained);
-			} else {
-				client.publish(topic, encoder.getBytes(sparkplugPayload), qos, retained);
-			}
-
-		} else {
-			client.publish(topic, null, 0, false);
-		}
-	}
 }
