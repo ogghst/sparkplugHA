@@ -16,49 +16,31 @@ import org.eclipse.tahu.message.model.SparkplugBPayload;
 
 import it.nm.sparkplugha.ConnectedSpHANode;
 import it.nm.sparkplugha.OTAClientFeature;
+import it.nm.sparkplugha.OTAServerFeature;
 import it.nm.sparkplugha.SPHAMetric;
 
-public class HelloNode extends ConnectedSpHANode {
+public class OTAServerNode extends ConnectedSpHANode {
 
-    private final static Logger LOGGER = Logger.getLogger(HelloNode.class.getName());
+    private final static Logger LOGGER = Logger.getLogger(OTAServerNode.class.getName());
 
     private SPHAMetric helloWorldMetric;
 
-    private OTAClientFeature ota;
+    private OTAServerFeature ota;
 
     public static void main(String[] args) throws Exception {
 
 	// LogManager.getLogManager().getLogger(Logger.GLOBAL_LOGGER_NAME).setLevel(Level.FINE);
 	// LogManager.getLogManager().getLogger("").setLevel(Level.FINE);
 
-	LOGGER.info("Start HelloNode");
+	LOGGER.info("Start HelloOTAServerode");
 
-	HelloNode node = new HelloNode();
+	OTAServerNode node = new OTAServerNode();
 	node.connect();
 
 	LOGGER.info("Connected");
 
-	Thread.sleep(5000);
-
-	node.askFirmware();
-
-	for (int i = 0; i < 5; i++) {
-
-	    node.run();
-	    Thread.sleep(3000);
-
-	}
-
-	node.disconnect();
-
-	LOGGER.info("Disconnected");
-
-    }
-
-    private void askFirmware() throws Exception {
-
-	LOGGER.info("Asking New Firmware");
-	publishFeatureData(OTAClientFeature.DEVICETOPIC, ota.askFirmwarePayload());
+	while (true)
+	    Thread.sleep(10000);
 
     }
 
@@ -69,31 +51,20 @@ public class HelloNode extends ConnectedSpHANode {
 
     }
 
-    public HelloNode() throws Exception {
+    public OTAServerNode() throws Exception {
 
 	super();
 
 	setServerUrl("tcp://localhost:1883");
 	setGroupId("Sparkplug B Home Automation Devices");
-	setEdgeNode("JavaHelloNode");
-	setClientId("JavaHelloEdgeNode");
+	setEdgeNode("JavaHelloOTAServer");
+	setClientId("JavaHelloOTAServerEdgeNode");
 	setServerUsername("admin");
 	setServerPassword("changeme");
 
-	ota = new OTAClientFeature(this, "FwName", "1.0.0");
+	ota = new OTAServerFeature(this, "fwName", "1.0.0");
 	addFeature(ota);
-
-	helloWorldMetric = createSpHAMetric("helloWorldMetric", String, "uninitialized");
 	setNodeBirthPayload(createNodeBirthPayload());
-
-    }
-
-    public void run() throws Exception {
-
-	helloWorldMetric.setValue("Hello, World!");
-	updateSpHAMetric(helloWorldMetric);
-	publishNodeData(helloWorldMetric.getName());
-	LOGGER.info("Sent Hello World");
 
     }
 

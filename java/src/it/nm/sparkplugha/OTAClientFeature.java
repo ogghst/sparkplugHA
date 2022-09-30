@@ -2,6 +2,7 @@ package it.nm.sparkplugha;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 import org.eclipse.tahu.SparkplugInvalidTypeException;
 import org.eclipse.tahu.message.model.MetricDataType;
@@ -17,23 +18,30 @@ import it.nm.sparkplugha.model.SPHAFeature;
 
 public class OTAClientFeature extends SPHAFeature {
 
+    private final static Logger LOGGER = Logger.getLogger(OTAClientFeature.class.getName());
+
     List<Parameter> params = new ArrayList<Parameter>();
-    public static final String OTACLIENTREQUESTMETRIC = "OTA/Request";
-    public static final String OTACLIENTVERSION = "1.0.0";
+    public static final String FWREQUESTMETRIC = "OTAClient/Fw";
+    public static final String VERSION = "1.0.0";
+
+    public static final String FWNAMEPROPERTY = "OTAClient/FwName";
+    public static final String FWVERSIONPROPERTY = "OTAClient/FwVersion";
+
+    public static final String DEVICETOPIC = "OTAClient";
 
     public OTAClientFeature(BaseSpHANode node, String fwName, String fwVersion) throws SparkplugInvalidTypeException {
 
-	super("OTA", node);
-	params.add(new Parameter("FWName", ParameterDataType.String, fwName));
-	params.add(new Parameter("FWVersion", ParameterDataType.String, fwVersion));
+	super("OTAClient", node);
+	params.add(new Parameter(FWNAMEPROPERTY, ParameterDataType.String, fwName));
+	params.add(new Parameter(FWVERSIONPROPERTY, ParameterDataType.String, fwVersion));
 
     }
 
     @Override
     public Template getTemplateDefinition() {
 
-	return new TemplateBuilder().version(OTACLIENTVERSION).templateRef(OTACLIENTREQUESTMETRIC).definition(true).addParameters(params)
-		.createTemplate();
+	return new TemplateBuilder().version(VERSION).templateRef(FWREQUESTMETRIC).definition(true)
+		.addParameters(params).createTemplate();
 
     }
 
@@ -41,12 +49,12 @@ public class OTAClientFeature extends SPHAFeature {
 
 	SparkplugBPayload payload = getNode().createPayload();
 
-	payload.addMetric(new MetricBuilder(getName(), MetricDataType.Template,
+	payload.addMetric(new MetricBuilder(FWREQUESTMETRIC, MetricDataType.Template,
 
-		new TemplateBuilder().version(OTACLIENTVERSION).templateRef(OTACLIENTREQUESTMETRIC).definition(false).addParameters(params)
-			.createTemplate())
+		new TemplateBuilder().version(VERSION).templateRef(FWREQUESTMETRIC).definition(false)
+			.addParameters(params).createTemplate())
 		.createMetric());
-	
+
 	return payload;
 
     }
@@ -54,14 +62,46 @@ public class OTAClientFeature extends SPHAFeature {
     @Override
     public void DataArrived(Metric metric) {
 
-	if(metric.getName() == OTAServerFeature.OTASERVERFWLISTMETRIC) {
-	    
+	if (metric.getName().equals(OTAServerFeature.FWAVAILABLEMETRIC)) {
+
+	    LOGGER.info("New Firmware Available");
+
+	    for (Parameter p : ((Template) metric.getValue()).getParameters()) {
+
+		LOGGER.info("   Name: '" + p.getName() + "', value = '" + p.getValue() + "'");
+
+	    }
+
 	}
 
     }
 
     @Override
     public void CommandArrived(Metric metric) {
+
+    }
+
+    @Override
+    public String getTopic() {
+
+	return DEVICETOPIC;
+
+    }
+
+    String[] listeningDeviceCommandTopics = new String[] { OTAServerFeature.DEVICETOPIC };
+    String[] listeningDeviceDataTopics = new String[] {};
+
+    @Override
+    public String[] getListeningDeviceCommandTopics() {
+
+	return listeningDeviceDataTopics;
+
+    }
+
+    @Override
+    public String[] getListeningDeviceDataTopics() {
+
+	return listeningDeviceCommandTopics;
 
     }
 

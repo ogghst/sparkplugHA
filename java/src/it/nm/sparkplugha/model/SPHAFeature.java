@@ -13,6 +13,10 @@ public abstract class SPHAFeature {
 	this.name = name;
 
     }
+    
+    public abstract String getTopic();
+    public abstract String[] getListeningDeviceDataTopics();
+    public abstract String[] getListeningDeviceCommandTopics();
 
     public String getName() {
 
@@ -20,22 +24,17 @@ public abstract class SPHAFeature {
 
     }
 
-    public void setName(String name) {
-
-	this.name = name;
-
-    }
-
-    private String name;
-    private BaseSpHANode node;
-
-    public abstract Template getTemplateDefinition();
-
     public BaseSpHANode getNode() {
 
 	return node;
 
     }
+
+    private String name;
+
+    private BaseSpHANode node;
+
+    public abstract Template getTemplateDefinition();
 
     public abstract void DataArrived(Metric metric) throws Exception;
 

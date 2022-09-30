@@ -1,7 +1,9 @@
 package it.nm.sparkplugha;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.Vector;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
@@ -84,9 +86,62 @@ public abstract class ConnectedSpHANode extends BaseSpHANode implements MqttCall
 	// Subscribe to control/command messages for both the edge of network node and
 	// the attached devices
 	client.subscribe(NAMESPACE + "/" + groupId + "/NCMD/" + edgeNode + "/#", 0);
-	client.subscribe(NAMESPACE + "/" + groupId + "/DCMD/" + edgeNode + "/#", 0);
+
 	// client.subscribe(NAMESPACE + "/#", 0);
 	client.subscribe(Utils.SCADA_NAMESPACE + "/#", 0);
+
+	for (SPHAFeature feature : getFeatures()) {
+
+	    subscribeFeature(feature);
+
+	}
+
+    }
+
+    @Override
+    protected void addFeature(SPHAFeature feature) {
+
+	super.addFeature(feature);
+
+	if (client == null || !client.isConnected())
+	    return;
+
+	try {
+
+	    subscribeFeature(feature);
+
+	} catch (Exception e) {
+
+	    LOGGER.log(Level.WARNING, "Cannot subscribe to topic. Cause: " + e.getMessage(), e);
+
+	}
+
+    }
+
+    private void subscribeFeature(SPHAFeature feature) throws MqttException {
+
+	LOGGER.fine("Subscribing feature: " + feature.getName() + ". Topic = '" + feature.getTopic() + "'");
+
+	client.subscribe(NAMESPACE + "/" + groupId + "/DCMD/" + edgeNode + "/" + feature.getTopic(), 0);
+
+	String[] dataTopics = feature.getListeningDeviceDataTopics();
+	String[] commandTopics = feature.getListeningDeviceCommandTopics();
+
+	for (int i = 0; i < dataTopics.length; i++) {
+
+	    LOGGER.fine("	Listening Device Data Topic = '" + dataTopics[i] + "'");
+
+	    client.subscribe(NAMESPACE + "/" + groupId + "/DDATA/+/" + dataTopics[i], 0);
+
+	}
+
+	for (int i = 0; i < commandTopics.length; i++) {
+
+	    LOGGER.fine("	Listening Device Command Topic = '" + dataTopics[i] + "'");
+
+	    client.subscribe(NAMESPACE + "/" + groupId + "/DCMD/+/" + commandTopics[i], 0);
+
+	}
 
     }
 
@@ -115,6 +170,7 @@ public abstract class ConnectedSpHANode extends BaseSpHANode implements MqttCall
     protected void disconnect() throws Exception {
 
 	client.unsubscribe(NAMESPACE + "/" + groupId + "/NCMD/" + edgeNode + "/#");
+	// client.unsubscribe(NAMESPACE + "/" + groupId + "/NDATA/" + edgeNode + "/#");
 	// client.unsubscribe(NAMESPACE + "/" + groupId + "/DCMD/" + edgeNode + "/#");
 	// client.unsubscribe(NAMESPACE + "/#");
 
@@ -217,13 +273,56 @@ public abstract class ConnectedSpHANode extends BaseSpHANode implements MqttCall
 
 	}
 
-	else if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(groupId) && splitTopic[2].equals("DCMD")
-		&& splitTopic[3].equals(edgeNode)) {
+	/*
+	 * else if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(groupId) &&
+	 * splitTopic[2].equals("DCMD") && splitTopic[3].equals(edgeNode)) {
+	 * 
+	 * LOGGER.fine("Command received for device " + splitTopic[4]);
+	 * 
+	 * for (Metric metric : inboundPayload.getMetrics()) {
+	 * 
+	 * String name = metric.getName(); Object value = metric.getValue();
+	 * 
+	 * SPHAMetric spHAMetric = getSpHAMetricByName(name);
+	 * 
+	 * if (spHAMetric == null) {
+	 * 
+	 * LOGGER.warning("No Metric with name '" + name + "', ignoring");
+	 * 
+	 * } else {
+	 * 
+	 * updateSpHAMetric(spHAMetric); publishNodeData(name);
+	 * 
+	 * }
+	 * 
+	 * }
+	 * 
+	 * } else if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(groupId)
+	 * && splitTopic[2].equals("DDATA") && splitTopic[3].equals(edgeNode)) {
+	 * 
+	 * for (Metric metric : inboundPayload.getMetrics()) {
+	 * 
+	 * // forward to features for (SPHAFeature feature : features.values()) {
+	 * 
+	 * feature.DataArrived(metric);
+	 * 
+	 * }
+	 * 
+	 * }
+	 * 
+	 * }
+	 */
 
-	    for (Metric metric : inboundPayload.getMetrics()) {
+	for (SPHAFeature feature : features.values()) {
 
-		// forward to features
-		for (SPHAFeature feature : features.values()) {
+	    Vector<String> dT = new Vector<String>(Arrays.asList(feature.getListeningDeviceDataTopics()));
+	    Vector<String> cT = new Vector<String>(Arrays.asList(feature.getListeningDeviceCommandTopics()));
+
+	    // addressed directly to the feature
+	    if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(groupId) && splitTopic[2].equals("DCMD")
+		    && splitTopic[3].equals(edgeNode) && splitTopic[4].equals(feature.getTopic())) {
+
+		for (Metric metric : inboundPayload.getMetrics()) {
 
 		    feature.CommandArrived(metric);
 
@@ -231,42 +330,22 @@ public abstract class ConnectedSpHANode extends BaseSpHANode implements MqttCall
 
 	    }
 
-	}
+	    // message to a listening topic
+	    else if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(groupId) && splitTopic[2].equals("DDATA")
+		    && dT.contains(splitTopic[4])) {
 
-	else if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(groupId) && splitTopic[2].equals("DCMD")
-		&& splitTopic[3].equals(edgeNode)) {
+		for (Metric metric : inboundPayload.getMetrics()) {
 
-	    LOGGER.fine("Command received for device " + splitTopic[4]);
-
-	    for (Metric metric : inboundPayload.getMetrics()) {
-
-		String name = metric.getName();
-		Object value = metric.getValue();
-
-		SPHAMetric spHAMetric = getSpHAMetricByName(name);
-
-		if (spHAMetric == null) {
-
-		    LOGGER.warning("No Metric with name '" + name + "', ignoring");
-
-		} else {
-
-		    updateSpHAMetric(spHAMetric);
-		    publishNodeData(name);
+		    feature.DataArrived(metric);
 
 		}
 
-	    }
+	    } else if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(groupId) && splitTopic[2].equals("DCMD")
+		    && cT.contains(splitTopic[4])) {
 
-	} else if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(groupId) && splitTopic[2].equals("DDATA")
-		&& splitTopic[3].equals(edgeNode)) {
+		for (Metric metric : inboundPayload.getMetrics()) {
 
-	    for (Metric metric : inboundPayload.getMetrics()) {
-
-		// forward to features
-		for (SPHAFeature feature : features.values()) {
-
-		    feature.DataArrived(metric);
+		    feature.CommandArrived(metric);
 
 		}
 
@@ -339,14 +418,15 @@ public abstract class ConnectedSpHANode extends BaseSpHANode implements MqttCall
     }
 
     @Override
-    public void publishFeatureData(SparkplugBPayload payload) throws Exception {
+    public void publishFeatureData(String topic, SparkplugBPayload payload) throws Exception {
 
 	if (client.isConnected()) {
 
 	    synchronized (seqLock) {
 
-		executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + groupId + "/DDATA/" + edgeNode, payload, 0,
-			false, USING_COMPRESSION));
+		executor.execute(
+			new MQTTPublisher(client, NAMESPACE + "/" + groupId + "/DDATA/" + edgeNode + "/" + topic,
+				payload, 0, false, USING_COMPRESSION));
 
 	    }
 
@@ -360,14 +440,15 @@ public abstract class ConnectedSpHANode extends BaseSpHANode implements MqttCall
     }
 
     @Override
-    public void publishFeatureCommand(SparkplugBPayload payload) throws Exception {
+    public void publishFeatureCommand(String topic, SparkplugBPayload payload) throws Exception {
 
 	if (client.isConnected()) {
 
 	    synchronized (seqLock) {
 
-		executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + groupId + "/DCMD/" + edgeNode, payload, 0,
-			false, USING_COMPRESSION));
+		executor.execute(
+			new MQTTPublisher(client, NAMESPACE + "/" + groupId + "/DCMD/" + edgeNode + "/" + topic,
+				payload, 0, false, USING_COMPRESSION));
 
 	    }
 

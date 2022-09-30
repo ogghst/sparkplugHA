@@ -4,6 +4,7 @@ import static org.eclipse.tahu.message.model.MetricDataType.Int64;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.Hashtable;
 import java.util.logging.Logger;
@@ -53,6 +54,12 @@ public abstract class BaseSpHANode {
     protected void addFeature(SPHAFeature feature) {
 
 	features.put(feature.getName(), feature);
+
+    }
+
+    protected Collection<SPHAFeature> getFeatures() {
+
+	return features.values();
 
     }
 
@@ -273,9 +280,8 @@ public abstract class BaseSpHANode {
 
     public abstract void publishNodeCommand(SparkplugBPayload payload) throws Exception;
 
-    public abstract void publishFeatureData(SparkplugBPayload payload) throws Exception;
+    public abstract void publishFeatureData(String topic, SparkplugBPayload payload) throws Exception;
 
-    public abstract void publishFeatureCommand(SparkplugBPayload payload) throws Exception;
+    public abstract void publishFeatureCommand(String topic, SparkplugBPayload payload) throws Exception;
 
-    
 }
