@@ -8,6 +8,7 @@ import java.util.Date;
 import java.util.Hashtable;
 import java.util.logging.Logger;
 
+import org.eclipse.tahu.SparkplugInvalidTypeException;
 import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.Metric.MetricBuilder;
 import org.eclipse.tahu.message.model.MetricDataType;
@@ -21,8 +22,8 @@ public abstract class SPHANode {
     protected String hwVersion = "Emulated Hardware";
     protected String swVersion = "v1.0.0";
     protected static final String NAMESPACE = "spBv1.0";
-    protected String groupId = "Sparkplug B Home Automation Nodes";
-    protected String edgeNode = "NDEDGENODE";
+    protected String groupId = "SparkplugHA";
+    protected String edgeNodeId = "NDEDGENODE";
     protected String clientId = "NDCLIENTID";
 
     private int bdSeq = 0;
@@ -96,7 +97,7 @@ public abstract class SPHANode {
 	    for (SPHAMetric metric : metrics.values()) {
 
 		payload.addMetric(
-			new MetricBuilder(metric.getName(), metric.getType(), metric.getValue()).createMetric());
+			new MetricBuilder(metric.getName(), metric.getDataType(), metric.getValue()).createMetric());
 
 	    }
 
@@ -133,12 +134,12 @@ public abstract class SPHANode {
 	}
 
 	outboundPayload.addMetric(
-		new MetricBuilder(spHAMetric.getName(), spHAMetric.getType(), spHAMetric.getValue()).createMetric());
+		new MetricBuilder(spHAMetric.getName(), spHAMetric.getDataType(), spHAMetric.getValue()).createMetric());
 	return outboundPayload;
 
     }
 
-    public SPHAMetric createSPHAMetric(String name, MetricDataType dataType, Object initialValue) {
+    public SPHAMetric createSPHAMetric(String name, MetricDataType dataType, Object initialValue) throws SparkplugInvalidTypeException {
 
 	SPHAMetric aMetric = new SPHAMetric(name, dataType, initialValue);
 	metrics.put(aMetric.getName(), aMetric);
@@ -235,15 +236,15 @@ public abstract class SPHANode {
 
     }
 
-    public String getEdgeNode() {
+    public String getEdgeNodeId() {
 
-	return edgeNode;
+	return edgeNodeId;
 
     }
 
-    public void setEdgeNode(String edgeNode) {
+    public void setEdgeNodeId(String edgeNodeId) {
 
-	this.edgeNode = edgeNode;
+	this.edgeNodeId = edgeNodeId;
 
     }
 
@@ -273,10 +274,12 @@ public abstract class SPHANode {
 
     public abstract void publishNodeData(SparkplugBPayload payload) throws Exception;
 
-    public abstract void publishNodeCommand(SparkplugBPayload payload) throws Exception;
+    public abstract void publishNodeCommand(SPHAEdgeNodeDescriptor descriptor, SparkplugBPayload payload)
+	    throws Exception;
 
-    public abstract void publishFeatureData(String topic, SparkplugBPayload payload) throws Exception;
+    public abstract void publishFeatureData(SPHAFeature feature, SparkplugBPayload payload) throws Exception;
 
-    public abstract void publishFeatureCommand(String topic, SparkplugBPayload payload) throws Exception;
+    public abstract void publishFeatureCommand(SPHAFeature feature, SPHAEdgeNodeDescriptor descriptor,
+	    SparkplugBPayload payload) throws Exception;
 
 }

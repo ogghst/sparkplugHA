@@ -16,8 +16,6 @@ public abstract class SPHAFeature {
 
     public abstract String[] getListeningDeviceDataTopics();
 
-    public abstract String[] getListeningDeviceCommandTopics();
-
     public String getName() {
 
 	return name;
@@ -36,8 +34,8 @@ public abstract class SPHAFeature {
 
     public abstract Template getTemplateDefinition();
 
-    public abstract void DataArrived(Metric metric) throws Exception;
+    public abstract void DataArrived(SPHAEdgeNodeDescriptor node, Metric metric) throws Exception;
 
-    public abstract void CommandArrived(Metric metric) throws Exception;
+    public abstract void CommandArrived(SPHAEdgeNodeDescriptor node, Metric metric) throws Exception;
 
 }

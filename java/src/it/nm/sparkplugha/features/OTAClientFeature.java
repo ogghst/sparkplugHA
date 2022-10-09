@@ -14,6 +14,7 @@ import org.eclipse.tahu.message.model.SparkplugBPayload;
 import org.eclipse.tahu.message.model.Template;
 import org.eclipse.tahu.message.model.Template.TemplateBuilder;
 
+import it.nm.sparkplugha.model.SPHAEdgeNodeDescriptor;
 import it.nm.sparkplugha.model.SPHAFeature;
 import it.nm.sparkplugha.model.SPHANode;
 
@@ -28,7 +29,7 @@ public class OTAClientFeature extends SPHAFeature {
     public static final String FWNAMEPROPERTY = "OTAClient/FwName";
     public static final String FWVERSIONPROPERTY = "OTAClient/FwVersion";
 
-    public static final String DEVICETOPIC = "OTAClient";
+    public static final String DEVICETOPIC = "OTA";
 
     public OTAClientFeature(SPHANode node, String fwName, String fwVersion) throws SparkplugInvalidTypeException {
 
@@ -61,24 +62,24 @@ public class OTAClientFeature extends SPHAFeature {
     }
 
     @Override
-    public void DataArrived(Metric metric) {
-
-	if (metric.getName().equals(OTAServerFeature.FWAVAILABLEMETRIC)) {
-
-	    LOGGER.info("New Firmware Available");
-
-	    for (Parameter p : ((Template) metric.getValue()).getParameters()) {
-
-		LOGGER.info("   Name: '" + p.getName() + "', value = '" + p.getValue() + "'");
-
-	    }
-
-	}
+    public void DataArrived(SPHAEdgeNodeDescriptor node, Metric metric) {
 
     }
 
     @Override
-    public void CommandArrived(Metric metric) {
+    public void CommandArrived(SPHAEdgeNodeDescriptor node, Metric metric) {
+
+	if (metric.getName().equals(OTAServerFeature.FWAVAILABLEMETRIC)) {
+
+	    LOGGER.info("New Firmware Available from node " + node.getGroupId() + "/" + node.getEdgeNodeId());
+
+	    for (Parameter p : ((Template) metric.getValue()).getParameters()) {
+
+		LOGGER.info("   Parameter Name: '" + p.getName() + "', value = '" + p.getValue() + "'");
+
+	    }
+
+	}
 
     }
 
@@ -89,20 +90,12 @@ public class OTAClientFeature extends SPHAFeature {
 
     }
 
-    String[] listeningDeviceCommandTopics = new String[] { OTAServerFeature.DEVICETOPIC };
     String[] listeningDeviceDataTopics = new String[] {};
-
-    @Override
-    public String[] getListeningDeviceCommandTopics() {
-
-	return listeningDeviceDataTopics;
-
-    }
 
     @Override
     public String[] getListeningDeviceDataTopics() {
 
-	return listeningDeviceCommandTopics;
+	return listeningDeviceDataTopics;
 
     }
 

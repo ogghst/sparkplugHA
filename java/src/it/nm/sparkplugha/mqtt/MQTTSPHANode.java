@@ -29,6 +29,7 @@ import org.eclipse.tahu.util.CompressionAlgorithm;
 import org.eclipse.tahu.util.PayloadUtil;
 
 import it.nm.sparkplugha.Utils;
+import it.nm.sparkplugha.model.SPHAEdgeNodeDescriptor;
 import it.nm.sparkplugha.model.SPHAFeature;
 import it.nm.sparkplugha.model.SPHANode;
 
@@ -74,7 +75,7 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 	options.setUserName(serverUsername);
 	options.setPassword(serverPassword.toCharArray());
 
-	options.setWill(NAMESPACE + "/" + groupId + "/" + MessageType.NDEATH + "/" + edgeNode,
+	options.setWill(NAMESPACE + "/" + groupId + "/" + MessageType.NDEATH + "/" + edgeNodeId,
 		payloadToBytes(createNodeDeathPayload()), 0, false);
 
 	client = new MqttClient(serverUrl, clientId);
@@ -86,7 +87,8 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
 	// Subscribe to control/command messages for both the edge of network node and
 	// the attached devices
-	client.subscribe(NAMESPACE + "/" + groupId + "/" + MessageType.NCMD + "/" + edgeNode + "/#", 0);
+	client.subscribe(NAMESPACE + "/" + groupId + "/" + MessageType.NCMD + "/" + edgeNodeId + "/#", 0);
+	client.subscribe(NAMESPACE + "/" + groupId + "/" + MessageType.DCMD + "/" + edgeNodeId + "/#", 0);
 
 	// TODO manage SCADA state message
 	client.subscribe(Utils.SCADA_NAMESPACE + "/#", 0);
@@ -123,11 +125,12 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
 	LOGGER.fine("Subscribing feature: " + feature.getName() + ". Topic = '" + feature.getTopic() + "'");
 
-	client.subscribe(NAMESPACE + "/" + groupId + "/" + MessageType.DCMD + "/" + edgeNode + "/" + feature.getTopic(),
-		0);
+	// client.subscribe(NAMESPACE + "/" + groupId + "/" + MessageType.DCMD + "/" +
+	// edgeNode + "/" + feature.getTopic(),
+	// 0);
 
 	String[] dataTopics = feature.getListeningDeviceDataTopics();
-	String[] commandTopics = feature.getListeningDeviceCommandTopics();
+	// String[] commandTopics = feature.getListeningDeviceCommandTopics();
 
 	for (int i = 0; i < dataTopics.length; i++) {
 
@@ -137,13 +140,17 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
 	}
 
-	for (int i = 0; i < commandTopics.length; i++) {
-
-	    LOGGER.fine("	Listening Device Command Topic = '" + dataTopics[i] + "'");
-
-	    client.subscribe(NAMESPACE + "/" + groupId + "/" + MessageType.DCMD + "/+/" + commandTopics[i], 0);
-
-	}
+	/*
+	 * for (int i = 0; i < commandTopics.length; i++) {
+	 * 
+	 * LOGGER.fine("	Listening Device Command Topic = '" + dataTopics[i] +
+	 * "'");
+	 * 
+	 * client.subscribe(NAMESPACE + "/" + groupId + "/" + MessageType.DCMD + "/+/" +
+	 * commandTopics[i], 0);
+	 * 
+	 * }
+	 */
 
     }
 
@@ -165,15 +172,13 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
     @Override
     public void deliveryComplete(IMqttDeliveryToken token) {
 
+	LOGGER.fine("Published message: " + Arrays.toString(token.getTopics()));
+
 	try {
 
-	    LOGGER.fine("Published message: " + Arrays.toString(token.getTopics()) + " - " +
-
-	    	new String(token.getMessage().getPayload(), StandardCharsets.UTF_8));
+	    LOGGER.finest(new String(token.getMessage().getPayload(), StandardCharsets.UTF_8));
 
 	} catch (Exception e) {
-
-	    LOGGER.fine("Published message: " + Arrays.toString(token.getTopics()) + " - unparseable payload");
 
 	}
 
@@ -181,12 +186,12 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
     protected void disconnect() throws Exception {
 
-	client.unsubscribe(NAMESPACE + "/" + groupId + "/" + MessageType.NCMD + "/" + edgeNode + "/#");
+	client.unsubscribe(NAMESPACE + "/" + groupId + "/" + MessageType.NCMD + "/" + edgeNodeId + "/#");
 	// client.unsubscribe(NAMESPACE + "/" + groupId + "/NDATA/" + edgeNode + "/#");
 	// client.unsubscribe(NAMESPACE + "/" + groupId + "/DCMD/" + edgeNode + "/#");
 	// client.unsubscribe(NAMESPACE + "/#");
 
-	new MQTTPublisher(client, NAMESPACE + "/" + groupId + "/" + MessageType.NDEATH + "/" + edgeNode,
+	new MQTTPublisher(client, NAMESPACE + "/" + groupId + "/" + MessageType.NDEATH + "/" + edgeNodeId,
 		createNodeDeathPayload(), 1, true, USING_COMPRESSION).publish();
 
 	client.disconnect();
@@ -255,7 +260,7 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 	}
 
 	if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(groupId) && splitTopic[2].equals("NCMD")
-		&& splitTopic[3].equals(edgeNode)) {
+		&& splitTopic[3].equals(edgeNodeId)) {
 
 	    for (Metric metric : inboundPayload.getMetrics()) {
 
@@ -328,15 +333,16 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 	for (SPHAFeature feature : features.values()) {
 
 	    Vector<String> dT = new Vector<String>(Arrays.asList(feature.getListeningDeviceDataTopics()));
-	    Vector<String> cT = new Vector<String>(Arrays.asList(feature.getListeningDeviceCommandTopics()));
+	    // Vector<String> cT = new
+	    // Vector<String>(Arrays.asList(feature.getListeningDeviceCommandTopics()));
 
 	    // addressed directly to the feature
 	    if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(groupId) && splitTopic[2].equals("DCMD")
-		    && splitTopic[3].equals(edgeNode) && splitTopic[4].equals(feature.getTopic())) {
+		    && splitTopic[3].equals(edgeNodeId) && splitTopic[4].equals(feature.getTopic())) {
 
 		for (Metric metric : inboundPayload.getMetrics()) {
 
-		    feature.CommandArrived(metric);
+		    feature.CommandArrived(new SPHAEdgeNodeDescriptor(splitTopic[1], splitTopic[3]), metric);
 
 		}
 
@@ -344,24 +350,28 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
 	    // message to a listening topic
 	    else if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(groupId) && splitTopic[2].equals("DDATA")
-		    && dT.contains(splitTopic[4])) {
+		    && !splitTopic[3].equals(getEdgeNodeId()) && dT.contains(splitTopic[4])) {
 
 		for (Metric metric : inboundPayload.getMetrics()) {
 
-		    feature.DataArrived(metric);
-
-		}
-
-	    } else if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(groupId) && splitTopic[2].equals("DCMD")
-		    && cT.contains(splitTopic[4])) {
-
-		for (Metric metric : inboundPayload.getMetrics()) {
-
-		    feature.CommandArrived(metric);
+		    feature.DataArrived(new SPHAEdgeNodeDescriptor(splitTopic[1], splitTopic[3]), metric);
 
 		}
 
 	    }
+	    /*
+	     * else if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(groupId) &&
+	     * splitTopic[2].equals("DCMD") && cT.contains(splitTopic[4])) {
+	     * 
+	     * for (Metric metric : inboundPayload.getMetrics()) {
+	     * 
+	     * feature.CommandArrived(new SPHAEdgeNodeDescriptor(splitTopic[1],
+	     * splitTopic[3]), metric);
+	     * 
+	     * }
+	     * 
+	     * }
+	     */
 
 	}
 
@@ -373,7 +383,7 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
 	    // Reset the sequence number
 	    resetSeqNum();
-	    executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + groupId + "/NBIRTH/" + edgeNode, payload, 0,
+	    executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + groupId + "/NBIRTH/" + edgeNodeId, payload, 0,
 		    false, USING_COMPRESSION));
 
 	}
@@ -396,7 +406,29 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
 	    synchronized (seqLock) {
 
-		executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + groupId + "/NDATA/" + edgeNode, payload, 0,
+		executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + groupId + "/NDATA/" + edgeNodeId, payload,
+			0, false, USING_COMPRESSION));
+
+	    }
+
+	} else {
+
+	    // TODO store and forward
+	    throw new IOException("Not connected - not publishing data");
+
+	}
+
+    }
+
+    @Override
+    public void publishNodeCommand(SPHAEdgeNodeDescriptor descriptor, SparkplugBPayload payload) throws Exception {
+
+	if (client.isConnected()) {
+
+	    synchronized (seqLock) {
+
+		executor.execute(new MQTTPublisher(client,
+			NAMESPACE + "/" + descriptor.getGroupId() + "/NCMD/" + descriptor.getEdgeNodeId(), payload, 0,
 			false, USING_COMPRESSION));
 
 	    }
@@ -411,13 +443,14 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
     }
 
     @Override
-    public void publishNodeCommand(SparkplugBPayload payload) throws Exception {
+    public void publishFeatureData(SPHAFeature feature, SparkplugBPayload payload) throws Exception {
 
 	if (client.isConnected()) {
 
 	    synchronized (seqLock) {
 
-		executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + groupId + "/NCMD/" + edgeNode, payload, 0,
+		executor.execute(new MQTTPublisher(client,
+			NAMESPACE + "/" + groupId + "/DDATA/" + edgeNodeId + "/" + feature.getTopic(), payload, 0,
 			false, USING_COMPRESSION));
 
 	    }
@@ -432,37 +465,15 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
     }
 
     @Override
-    public void publishFeatureData(String topic, SparkplugBPayload payload) throws Exception {
+    public void publishFeatureCommand(SPHAFeature feature, SPHAEdgeNodeDescriptor descriptor, SparkplugBPayload payload)
+	    throws Exception {
 
 	if (client.isConnected()) {
 
 	    synchronized (seqLock) {
 
-		executor.execute(
-			new MQTTPublisher(client, NAMESPACE + "/" + groupId + "/DDATA/" + edgeNode + "/" + topic,
-				payload, 0, false, USING_COMPRESSION));
-
-	    }
-
-	} else {
-
-	    // TODO store and forward
-	    throw new IOException("Not connected - not publishing data");
-
-	}
-
-    }
-
-    @Override
-    public void publishFeatureCommand(String topic, SparkplugBPayload payload) throws Exception {
-
-	if (client.isConnected()) {
-
-	    synchronized (seqLock) {
-
-		executor.execute(
-			new MQTTPublisher(client, NAMESPACE + "/" + groupId + "/DCMD/" + edgeNode + "/" + topic,
-				payload, 0, false, USING_COMPRESSION));
+		executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + descriptor.getGroupId() + "/DCMD/"
+			+ descriptor.getEdgeNodeId() + "/" + feature.getTopic(), payload, 0, false, USING_COMPRESSION));
 
 	    }
 
@@ -481,7 +492,7 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
 	    // Reset the sequence number
 	    resetSeqNum();
-	    executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + groupId + "/NDEATH/" + edgeNode, payload, 0,
+	    executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + groupId + "/NDEATH/" + edgeNodeId, payload, 0,
 		    false, false));
 
 	}

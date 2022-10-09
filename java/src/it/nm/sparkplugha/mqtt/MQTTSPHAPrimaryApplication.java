@@ -19,7 +19,6 @@ import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.tahu.SparkplugParsingException;
 import org.eclipse.tahu.message.SparkplugBPayloadDecoder;
@@ -34,6 +33,9 @@ import org.eclipse.tahu.message.model.Topic;
 import org.eclipse.tahu.util.CompressionAlgorithm;
 import org.eclipse.tahu.util.TopicUtil;
 
+import it.nm.sparkplugha.events.SPHAMQTTConnectEvent;
+import it.nm.sparkplugha.events.SPHANodeBirthEvent;
+import it.nm.sparkplugha.events.SPHAEventManager;
 import it.nm.sparkplugha.model.SPHAEdgeNodeDescriptor;
 import it.nm.sparkplugha.model.SPHAEdgeNodeDescriptor.SPHANodeState;
 import it.nm.sparkplugha.model.SPHAEdgeNodeDescriptorKey;
@@ -73,6 +75,7 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
     private ExecutorService executor;
     private String primaryHostId = "UndefinedPrimaryHostId";
     private final Map<EdgeNodeDescriptor, Timer> rebirthTimers;
+    public SPHAEventManager evtMgr;
 
     private Object seqLock = new Object();
 
@@ -90,6 +93,7 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 
 	edgeNodeMap = new ConcurrentHashMap<>();
 	rebirthTimers = new ConcurrentHashMap<>();
+	evtMgr = new SPHAEventManager();
 
     }
 
@@ -130,6 +134,8 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 	    client.setTimeToWait(2000);
 	    client.setCallback(this); // short timeout on failure to connect
 	    client.connect(options);
+	    
+	    evtMgr.trigger(new SPHAMQTTConnectEvent(client));
 
 	    // Subscribe to control/command messages for both the edge of network node and
 	    // the attached devices
@@ -171,13 +177,14 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 
 	    LOGGER.fine("Published message: " + Arrays.toString(token.getTopics()) + " - " +
 
-	    	new String(token.getMessage().getPayload(), StandardCharsets.UTF_8));
+		    new String(token.getMessage().getPayload(), StandardCharsets.UTF_8));
 
 	} catch (Exception e) {
 
 	    LOGGER.fine("Published message: " + Arrays.toString(token.getTopics()) + " - unparseable payload");
 
 	}
+
     }
 
     public String getHostId() {
@@ -275,6 +282,7 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 
 		edgeNodeDescriptor = new SPHAEdgeNodeDescriptor(topic.getGroupId(), topic.getEdgeNodeId());
 		edgeNodeMap.put(edgeNodeDescriptorKey, edgeNodeDescriptor);
+		evtMgr.trigger(new SPHANodeBirthEvent(edgeNodeDescriptor, inboundPayload));
 
 	    }
 
@@ -383,7 +391,8 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 
 	} catch (Exception e) {
 
-	    LOGGER.log(Level.SEVERE, "Failed to create Rebirth request", e);
+	    LOGGER.log(Level.SEVERE, "Failed to create Rebirth request. Cause: " + e.getMessage(),
+		    e.fillInStackTrace());
 	    return;
 
 	}

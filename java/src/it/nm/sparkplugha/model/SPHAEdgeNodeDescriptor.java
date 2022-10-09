@@ -4,15 +4,17 @@ import org.eclipse.tahu.message.model.EdgeNodeDescriptor;
 
 public class SPHAEdgeNodeDescriptor extends EdgeNodeDescriptor {
 
-    public SPHAEdgeNodeDescriptor(String descriptorString) {
-
-	super(descriptorString);
-
-    }
+    /*
+     * public SPHAEdgeNodeDescriptor(String descriptorString) {
+     * 
+     * super(descriptorString);
+     * 
+     * }
+     */
 
     public SPHAEdgeNodeDescriptor(String groupId, String edgeNodeId) {
 
-	super(groupId, edgeNodeId);
+	super(groupId + "/" + edgeNodeId);
 
     }
 

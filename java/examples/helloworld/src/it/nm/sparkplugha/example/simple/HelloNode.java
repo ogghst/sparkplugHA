@@ -6,6 +6,7 @@ import java.util.logging.Logger;
 
 import it.nm.sparkplugha.features.OTAClientFeature;
 import it.nm.sparkplugha.model.SPHAMetric;
+import it.nm.sparkplugha.model.devices.SPHAHVAC;
 import it.nm.sparkplugha.mqtt.MQTTSPHANode;
 
 public class HelloNode extends MQTTSPHANode {
@@ -16,38 +17,12 @@ public class HelloNode extends MQTTSPHANode {
 
     private OTAClientFeature ota;
 
-    private int count = 0;
-
-    public static void main(String[] args) throws Exception {
-
-	LOGGER.info("Start HelloNode");
-
-	HelloNode node = new HelloNode();
-	node.connect();
-
-	LOGGER.info("Connected");
-
-	Thread.sleep(5000);
-
-	node.askFirmware();
-
-	for (int i = 0; i < 5; i++) {
-
-	    node.run();
-	    Thread.sleep(3000);
-
-	}
-
-	node.disconnect();
-
-	LOGGER.info("Disconnected");
-
-    }
+    private SPHAHVAC hvac;
 
     private void askFirmware() throws Exception {
 
 	LOGGER.info("Asking New Firmware");
-	publishFeatureData(OTAClientFeature.DEVICETOPIC, ota.askFirmwarePayload());
+	publishFeatureData(ota, ota.askFirmwarePayload());
 
     }
 
@@ -56,19 +31,23 @@ public class HelloNode extends MQTTSPHANode {
 	super();
 
 	setServerUrl("tcp://localhost:1883");
-	setGroupId("Sparkplug B Home Automation Devices");
-	setEdgeNode("JavaHelloNode");
+	setGroupId("SparkplugHA");
+	setEdgeNodeId("JavaHelloNode");
 	setClientId("JavaHelloEdgeNode");
 	setServerUsername("admin");
 	setServerPassword("changeme");
 
 	ota = new OTAClientFeature(this, "FwName", "1.0.0");
 	addFeature(ota);
+	
+	//hvac = new SPHAHVAC("HelloHVAC");
+	//addDevice(hvac);
 
 	helloWorldMetric = createSPHAMetric("helloWorldMetric", String, "uninitialized");
 	setNodeBirthPayload(createNodeBirthPayload());
 
     }
+
 
     public void run() throws Exception {
 
@@ -96,6 +75,34 @@ public class HelloNode extends MQTTSPHANode {
     public void setScanRate(int scanRate) {
 
 	LOGGER.info("Scan Rate requested: " + scanRate);
+
+    }
+
+    private int count = 0;
+
+    public static void main(String[] args) throws Exception {
+
+	LOGGER.info("Start HelloNode");
+
+	HelloNode node = new HelloNode();
+	node.connect();
+
+	LOGGER.info("Connected");
+
+	Thread.sleep(5000);
+
+	node.askFirmware();
+
+	for (int i = 0; i < 2; i++) {
+
+	    node.run();
+	    Thread.sleep(3000);
+
+	}
+
+	node.disconnect();
+
+	LOGGER.info("Disconnected");
 
     }
 

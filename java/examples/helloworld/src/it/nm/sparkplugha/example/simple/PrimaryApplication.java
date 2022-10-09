@@ -2,6 +2,8 @@ package it.nm.sparkplugha.example.simple;
 
 import java.util.logging.Logger;
 
+import javax.swing.SwingUtilities;
+
 import it.nm.sparkplugha.mqtt.MQTTSPHAPrimaryApplication;
 
 public class PrimaryApplication extends MQTTSPHAPrimaryApplication {
@@ -28,6 +30,17 @@ public class PrimaryApplication extends MQTTSPHAPrimaryApplication {
 	setHostId("JavaPrimaryApplication");
 	setServerUsername("admin");
 	setServerPassword("changeme");
+
+	SwingUtilities.invokeLater(new Runnable() {
+
+	    @Override
+	    public void run() {
+
+		new SwingPrimaryApplicationGUI(evtMgr);
+
+	    }
+
+	});
 
     }
 

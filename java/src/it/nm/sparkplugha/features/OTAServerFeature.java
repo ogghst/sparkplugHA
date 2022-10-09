@@ -14,6 +14,7 @@ import org.eclipse.tahu.message.model.SparkplugBPayload;
 import org.eclipse.tahu.message.model.Template;
 import org.eclipse.tahu.message.model.Template.TemplateBuilder;
 
+import it.nm.sparkplugha.model.SPHAEdgeNodeDescriptor;
 import it.nm.sparkplugha.model.SPHAFeature;
 import it.nm.sparkplugha.model.SPHANode;
 
@@ -28,7 +29,7 @@ public class OTAServerFeature extends SPHAFeature {
     public static final String FWNAMEPROPERTY = "OTAServer/FwName";
     public static final String FWVERSIONPROPERTY = "OTAServer/FwVersion";
 
-    public static final String DEVICETOPIC = "OTAServer";
+    public static final String DEVICETOPIC = "OTA";
 
     public OTAServerFeature(SPHANode node, String fwName, String fwVersion) throws Exception {
 
@@ -47,7 +48,7 @@ public class OTAServerFeature extends SPHAFeature {
     }
 
     @Override
-    public void DataArrived(Metric metric) throws Exception {
+    public void DataArrived(SPHAEdgeNodeDescriptor node, Metric metric) throws Exception {
 
 	if (metric.getName().equals(OTAClientFeature.FWREQUESTMETRIC)) {
 
@@ -59,16 +60,14 @@ public class OTAServerFeature extends SPHAFeature {
 		    .templateRef(FWAVAILABLEMETRIC).definition(false).addParameters(params).createTemplate())
 		    .createMetric());
 
-	    getNode().publishFeatureData(DEVICETOPIC, payload);
+	    getNode().publishFeatureCommand(this, node, payload);
 
 	}
 
     }
 
     @Override
-    public void CommandArrived(Metric metric) {
-
-	// TODO Auto-generated method stub
+    public void CommandArrived(SPHAEdgeNodeDescriptor node, Metric metric) throws Exception {
 
     }
 
@@ -79,20 +78,12 @@ public class OTAServerFeature extends SPHAFeature {
 
     }
 
-    String[] listeningDeviceCommandTopics = new String[] { OTAClientFeature.DEVICETOPIC };
-    String[] listeningDeviceDataTopics = new String[] {};
-
-    @Override
-    public String[] getListeningDeviceCommandTopics() {
-
-	return listeningDeviceDataTopics;
-
-    }
+    String[] listeningDeviceDataTopics = new String[] { OTAClientFeature.DEVICETOPIC };
 
     @Override
     public String[] getListeningDeviceDataTopics() {
 
-	return listeningDeviceCommandTopics;
+	return listeningDeviceDataTopics;
 
     }
 

@@ -45,8 +45,8 @@ public class OTAServerNode extends MQTTSPHANode {
 	super();
 
 	setServerUrl("tcp://localhost:1883");
-	setGroupId("Sparkplug B Home Automation Devices");
-	setEdgeNode("JavaHelloOTAServer");
+	setGroupId("SparkplugHA");
+	setEdgeNodeId("JavaHelloOTAServer");
 	setClientId("JavaHelloOTAServerEdgeNode");
 	setServerUsername("admin");
 	setServerPassword("changeme");

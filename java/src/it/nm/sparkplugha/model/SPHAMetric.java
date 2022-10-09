@@ -1,61 +1,19 @@
 package it.nm.sparkplugha.model;
 
+import org.eclipse.tahu.SparkplugInvalidTypeException;
+import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.MetricDataType;
 
-public class SPHAMetric {
+import java.util.Date;
 
-    private String name;
-    private Object value;
-    private MetricDataType type;
+import org.eclipse.tahu.message.model.MetaData.MetaDataBuilder;
+import org.eclipse.tahu.message.model.PropertySet.PropertySetBuilder;
 
-    protected SPHAMetric(String name, MetricDataType type, Object value) {
+public class SPHAMetric extends Metric {
 
-	this.name = name;
-	this.value = value;
-	this.type = type;
+    protected SPHAMetric(String name, MetricDataType type, Object value) throws SparkplugInvalidTypeException {
 
-    }
-
-    public String getName() {
-
-	return name;
-
-    }
-
-    public void setName(String name) {
-
-	this.name = name;
-
-    }
-
-    public Object getValue() {
-
-	return value;
-
-    }
-
-    public void setValue(Object value) {
-
-	this.value = value;
-
-    }
-
-    public MetricDataType getType() {
-
-	return type;
-
-    }
-
-    public void setType(MetricDataType type) {
-
-	this.type = type;
-
-    }
-
-    @Override
-    public String toString() {
-
-	return name;
+	super(name, (long) 0, new Date(), type, false, false, null, null, value);
 
     }
 
