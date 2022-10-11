@@ -22,6 +22,7 @@ import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
 import org.eclipse.tahu.SparkplugException;
 import org.eclipse.tahu.message.SparkplugBPayloadDecoder;
 import org.eclipse.tahu.message.SparkplugBPayloadEncoder;
+import org.eclipse.tahu.message.model.EdgeNodeDescriptor;
 import org.eclipse.tahu.message.model.MessageType;
 import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.SparkplugBPayload;
@@ -29,7 +30,7 @@ import org.eclipse.tahu.util.CompressionAlgorithm;
 import org.eclipse.tahu.util.PayloadUtil;
 
 import it.nm.sparkplugha.Utils;
-import it.nm.sparkplugha.model.SPHAEdgeNodeDescriptor;
+import it.nm.sparkplugha.model.SPHAEdgeNode;
 import it.nm.sparkplugha.model.SPHAFeature;
 import it.nm.sparkplugha.model.SPHANode;
 
@@ -342,7 +343,7 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
 		for (Metric metric : inboundPayload.getMetrics()) {
 
-		    feature.CommandArrived(new SPHAEdgeNodeDescriptor(splitTopic[1], splitTopic[3]), metric);
+		    feature.CommandArrived(new EdgeNodeDescriptor(splitTopic[1], splitTopic[3]), metric);
 
 		}
 
@@ -354,7 +355,7 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
 		for (Metric metric : inboundPayload.getMetrics()) {
 
-		    feature.DataArrived(new SPHAEdgeNodeDescriptor(splitTopic[1], splitTopic[3]), metric);
+		    feature.DataArrived(new EdgeNodeDescriptor(splitTopic[1], splitTopic[3]), metric);
 
 		}
 
@@ -421,7 +422,7 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
     }
 
     @Override
-    public void publishNodeCommand(SPHAEdgeNodeDescriptor descriptor, SparkplugBPayload payload) throws Exception {
+    public void publishNodeCommand(SPHAEdgeNode descriptor, SparkplugBPayload payload) throws Exception {
 
 	if (client.isConnected()) {
 
@@ -465,7 +466,7 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
     }
 
     @Override
-    public void publishFeatureCommand(SPHAFeature feature, SPHAEdgeNodeDescriptor descriptor, SparkplugBPayload payload)
+    public void publishFeatureCommand(SPHAFeature feature, EdgeNodeDescriptor descriptor, SparkplugBPayload payload)
 	    throws Exception {
 
 	if (client.isConnected()) {

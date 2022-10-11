@@ -31,12 +31,12 @@ public class PrimaryApplication extends MQTTSPHAPrimaryApplication {
 	setServerUsername("admin");
 	setServerPassword("changeme");
 
-	SwingUtilities.invokeLater(new Runnable() {
+	SwingUtilities.invokeAndWait(new Runnable() {
 
 	    @Override
 	    public void run() {
 
-		new SwingPrimaryApplicationGUI(evtMgr);
+		new SparkPlugMonitor(evtMgr);
 
 	    }
 

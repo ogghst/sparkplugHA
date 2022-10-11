@@ -6,7 +6,7 @@ import org.eclipse.tahu.message.model.SparkplugBPayload;
 
 import it.nm.sparkplugha.model.SPHAEdgeNode;
 
-public class SPHANodeBirthEvent implements SPHANodeEvent {
+public class SPHANodeDataEvent implements SPHANodeEvent {
 
     private SPHAEdgeNode node;
 
@@ -17,7 +17,7 @@ public class SPHANodeBirthEvent implements SPHANodeEvent {
 
     }
 
-    public SPHANodeBirthEvent(SPHAEdgeNode node ) {
+    public SPHANodeDataEvent(SPHAEdgeNode node ) {
 
 	this.node = node;
 

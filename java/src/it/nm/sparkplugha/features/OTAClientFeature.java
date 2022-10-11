@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import org.eclipse.tahu.SparkplugInvalidTypeException;
+import org.eclipse.tahu.message.model.EdgeNodeDescriptor;
 import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.Metric.MetricBuilder;
 import org.eclipse.tahu.message.model.MetricDataType;
@@ -14,7 +15,6 @@ import org.eclipse.tahu.message.model.SparkplugBPayload;
 import org.eclipse.tahu.message.model.Template;
 import org.eclipse.tahu.message.model.Template.TemplateBuilder;
 
-import it.nm.sparkplugha.model.SPHAEdgeNodeDescriptor;
 import it.nm.sparkplugha.model.SPHAFeature;
 import it.nm.sparkplugha.model.SPHANode;
 
@@ -62,12 +62,12 @@ public class OTAClientFeature extends SPHAFeature {
     }
 
     @Override
-    public void DataArrived(SPHAEdgeNodeDescriptor node, Metric metric) {
+    public void DataArrived(EdgeNodeDescriptor node, Metric metric) {
 
     }
 
     @Override
-    public void CommandArrived(SPHAEdgeNodeDescriptor node, Metric metric) {
+    public void CommandArrived(EdgeNodeDescriptor node, Metric metric) {
 
 	if (metric.getName().equals(OTAServerFeature.FWAVAILABLEMETRIC)) {
 

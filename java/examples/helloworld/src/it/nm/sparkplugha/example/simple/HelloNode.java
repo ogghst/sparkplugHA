@@ -39,15 +39,14 @@ public class HelloNode extends MQTTSPHANode {
 
 	ota = new OTAClientFeature(this, "FwName", "1.0.0");
 	addFeature(ota);
-	
-	//hvac = new SPHAHVAC("HelloHVAC");
-	//addDevice(hvac);
+
+	// hvac = new SPHAHVAC("HelloHVAC");
+	// addDevice(hvac);
 
 	helloWorldMetric = createSPHAMetric("helloWorldMetric", String, "uninitialized");
 	setNodeBirthPayload(createNodeBirthPayload());
 
     }
-
 
     public void run() throws Exception {
 
@@ -93,10 +92,10 @@ public class HelloNode extends MQTTSPHANode {
 
 	node.askFirmware();
 
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; i < 60; i++) {
 
-	    node.run();
 	    Thread.sleep(3000);
+	    node.run();
 
 	}
 

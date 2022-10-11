@@ -6,28 +6,28 @@ import org.eclipse.tahu.message.model.SparkplugBPayload;
 
 import it.nm.sparkplugha.model.SPHAEdgeNode;
 
-public class SPHANodeBirthEvent implements SPHANodeEvent {
+public class SPHANodeOutOfSequenceEvent implements SPHAEvent {
 
+    private Date date;
     private SPHAEdgeNode node;
 
-    @Override
-    public SPHAEdgeNode getNode() {
-
-	return node;
-
-    }
-
-    public SPHANodeBirthEvent(SPHAEdgeNode node ) {
+    public SPHANodeOutOfSequenceEvent(SPHAEdgeNode node) {
 
 	this.node = node;
-
+	date = new Date();
 
     }
 
     @Override
     public Date getTimestamp() {
 
-	return node.getPayload() == null ? new Date() : node.getPayload().getTimestamp();
+	return date;
+
+    }
+
+    public SPHAEdgeNode getNode() {
+
+	return node;
 
     }
 

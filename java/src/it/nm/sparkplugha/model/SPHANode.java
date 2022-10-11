@@ -9,6 +9,7 @@ import java.util.Hashtable;
 import java.util.logging.Logger;
 
 import org.eclipse.tahu.SparkplugInvalidTypeException;
+import org.eclipse.tahu.message.model.EdgeNodeDescriptor;
 import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.Metric.MetricBuilder;
 import org.eclipse.tahu.message.model.MetricDataType;
@@ -133,13 +134,15 @@ public abstract class SPHANode {
 
 	}
 
-	outboundPayload.addMetric(
-		new MetricBuilder(spHAMetric.getName(), spHAMetric.getDataType(), spHAMetric.getValue()).createMetric());
+	outboundPayload
+		.addMetric(new MetricBuilder(spHAMetric.getName(), spHAMetric.getDataType(), spHAMetric.getValue())
+			.createMetric());
 	return outboundPayload;
 
     }
 
-    public SPHAMetric createSPHAMetric(String name, MetricDataType dataType, Object initialValue) throws SparkplugInvalidTypeException {
+    public SPHAMetric createSPHAMetric(String name, MetricDataType dataType, Object initialValue)
+	    throws SparkplugInvalidTypeException {
 
 	SPHAMetric aMetric = new SPHAMetric(name, dataType, initialValue);
 	metrics.put(aMetric.getName(), aMetric);
@@ -274,12 +277,11 @@ public abstract class SPHANode {
 
     public abstract void publishNodeData(SparkplugBPayload payload) throws Exception;
 
-    public abstract void publishNodeCommand(SPHAEdgeNodeDescriptor descriptor, SparkplugBPayload payload)
-	    throws Exception;
+    public abstract void publishNodeCommand(SPHAEdgeNode descriptor, SparkplugBPayload payload) throws Exception;
 
     public abstract void publishFeatureData(SPHAFeature feature, SparkplugBPayload payload) throws Exception;
 
-    public abstract void publishFeatureCommand(SPHAFeature feature, SPHAEdgeNodeDescriptor descriptor,
+    public abstract void publishFeatureCommand(SPHAFeature feature, EdgeNodeDescriptor descriptor,
 	    SparkplugBPayload payload) throws Exception;
 
 }

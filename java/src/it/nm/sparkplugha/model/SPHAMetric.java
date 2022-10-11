@@ -1,13 +1,10 @@
 package it.nm.sparkplugha.model;
 
+import java.util.Date;
+
 import org.eclipse.tahu.SparkplugInvalidTypeException;
 import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.MetricDataType;
-
-import java.util.Date;
-
-import org.eclipse.tahu.message.model.MetaData.MetaDataBuilder;
-import org.eclipse.tahu.message.model.PropertySet.PropertySetBuilder;
 
 public class SPHAMetric extends Metric {
 

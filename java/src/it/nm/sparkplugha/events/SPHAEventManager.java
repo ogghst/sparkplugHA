@@ -6,8 +6,6 @@ import java.util.Map;
 import java.util.Vector;
 import java.util.logging.Logger;
 
-import it.nm.sparkplugha.example.simple.HelloNode;
-
 public class SPHAEventManager {
 
     private final static Logger LOGGER = Logger.getLogger(SPHAEventManager.class.getName());
@@ -52,7 +50,7 @@ public class SPHAEventManager {
 	if (users == null)
 	    return;
 
-	LOGGER.fine("trigger: " + event);
+	LOGGER.fine("trigger - class: "+event.getClass().getCanonicalName()+" - name: " + event);
 
 	for (SPHAEventListener listener : users) {
 

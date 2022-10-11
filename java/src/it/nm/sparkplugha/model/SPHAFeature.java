@@ -1,5 +1,6 @@
 package it.nm.sparkplugha.model;
 
+import org.eclipse.tahu.message.model.EdgeNodeDescriptor;
 import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.Template;
 
@@ -34,8 +35,8 @@ public abstract class SPHAFeature {
 
     public abstract Template getTemplateDefinition();
 
-    public abstract void DataArrived(SPHAEdgeNodeDescriptor node, Metric metric) throws Exception;
+    public abstract void DataArrived(EdgeNodeDescriptor node, Metric metric) throws Exception;
 
-    public abstract void CommandArrived(SPHAEdgeNodeDescriptor node, Metric metric) throws Exception;
+    public abstract void CommandArrived(EdgeNodeDescriptor node, Metric metric) throws Exception;
 
 }
