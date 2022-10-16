@@ -31,11 +31,12 @@ public class OTAClientFeature extends SPHAFeature {
 
     public static final String DEVICETOPIC = "OTA";
 
-    public OTAClientFeature(SPHANode node, String fwName, String fwVersion) throws SparkplugInvalidTypeException {
+    public OTAClientFeature(String fwName, String fwVersion, SPHANode node) throws SparkplugInvalidTypeException {
 
 	super("OTAClient", node);
 	params.add(new Parameter(FWNAMEPROPERTY, ParameterDataType.String, fwName));
 	params.add(new Parameter(FWVERSIONPROPERTY, ParameterDataType.String, fwVersion));
+	node.addFeature(this);
 
     }
 

@@ -4,6 +4,9 @@ import static org.eclipse.tahu.message.model.MetricDataType.String;
 
 import java.util.logging.Logger;
 
+import it.nm.sparkplugha.SPHANode;
+import it.nm.sparkplugha.SPHANodeManager;
+import it.nm.sparkplugha.Utils;
 import it.nm.sparkplugha.features.OTAClientFeature;
 import it.nm.sparkplugha.model.SPHAMetric;
 import it.nm.sparkplugha.model.devices.SPHAHVAC;
@@ -82,8 +85,14 @@ public class HelloNode extends MQTTSPHANode {
 
 	LOGGER.info("Start HelloNode");
 
-	HelloNode node = new HelloNode();
-	node.connect();
+	SPHANode hello = new SPHANode("hellogroup","hellonode");
+	//setup
+	hello.addFeature(new OTAClientFeature("FwName", "1.0.0", hello));
+	hello.addMetric(Utils.createSPHAMetric("helloWorldMetric", String, "uninitialized"));
+	
+	SPHANodeManager mgr = new SPHANodeManager(hello, "tcp://localhost:1883", "helloclient");
+	mgr.connect();
+	mgr.birth();
 
 	LOGGER.info("Connected");
 

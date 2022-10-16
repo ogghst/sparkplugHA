@@ -43,15 +43,6 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
     private final static Logger LOGGER = Logger.getLogger(MQTTSPHANode.class.getName());
 
-    protected MqttClient client;
-    private CompressionAlgorithm compressionAlgorithm = CompressionAlgorithm.GZIP;
-    private ExecutorService executor;
-    private Object seqLock = new Object();
-    private String serverPassword = "";
-    private String serverUrl = "tcp://localhost:1883";
-    private String serverUsername = "";
-    private boolean USING_COMPRESSION = false;
-    private boolean USING_REAL_TLS = false;
 
     public abstract void reboot();
 
@@ -59,53 +50,6 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
     public abstract void setScanRate(int scanRate);
 
-    protected void connect() throws Exception {
-
-	// Random generator and thread pool for outgoing published messages
-	executor = Executors.newFixedThreadPool(1);
-
-	MqttConnectOptions options = new MqttConnectOptions();
-
-	if (USING_REAL_TLS) {
-
-	    SocketFactory sf = SSLSocketFactory.getDefault();
-	    options.setSocketFactory(sf);
-
-	}
-
-	// Connect to the MQTT Server
-	options.setAutomaticReconnect(true);
-	options.setCleanSession(true);
-	options.setConnectionTimeout(30);
-	options.setKeepAliveInterval(30);
-	options.setUserName(serverUsername);
-	options.setPassword(serverPassword.toCharArray());
-
-	options.setWill(NAMESPACE + "/" + getGroupId() + "/" + MessageType.NDEATH + "/" + getEdgeNodeId(),
-		payloadToBytes(createNodeDeathPayload()), 0, false);
-
-	client = new MqttClient(serverUrl, clientId);
-	client.setTimeToWait(2000);
-	client.setCallback(this); // short timeout on failure to connect
-	client.connect(options);
-
-	LOGGER.info("connected to '" + serverUrl + "' with ClientID '" + clientId + "'");
-
-	// Subscribe to control/command messages for both the edge of network node and
-	// the attached devices
-	client.subscribe(NAMESPACE + "/" + getGroupId() + "/" + MessageType.NCMD + "/" + getEdgeNodeId() + "/#", 0);
-	client.subscribe(NAMESPACE + "/" + getGroupId() + "/" + MessageType.DCMD + "/" + getEdgeNodeId() + "/#", 0);
-
-	// TODO manage SCADA state message
-	client.subscribe(Utils.SCADA_NAMESPACE + "/#", 0);
-
-	for (SPHAFeature feature : getFeatures()) {
-
-	    subscribeFeature(feature);
-
-	}
-
-    }
 
     @Override
     protected void addFeature(SPHAFeature feature) {
@@ -126,6 +70,8 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 	}
 
     }
+    
+    
 
     private void subscribeFeature(SPHAFeature feature) throws MqttException {
 
@@ -190,38 +136,8 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
     }
 
-    protected void disconnect() throws Exception {
 
-	client.unsubscribe(NAMESPACE + "/" + getGroupId() + "/" + MessageType.NCMD + "/" + getEdgeNodeId() + "/#");
-	// client.unsubscribe(NAMESPACE + "/" + groupId + "/NDATA/" + edgeNode + "/#");
-	// client.unsubscribe(NAMESPACE + "/" + groupId + "/DCMD/" + edgeNode + "/#");
-	// client.unsubscribe(NAMESPACE + "/#");
 
-	new MQTTPublisher(client, NAMESPACE + "/" + getGroupId() + "/" + MessageType.NDEATH + "/" + getEdgeNodeId(),
-		createNodeDeathPayload(), 1, true, USING_COMPRESSION).publish();
-
-	client.disconnect();
-
-    }
-
-    private byte[] payloadToBytes(SparkplugBPayload payload) throws IOException, SparkplugException {
-
-	byte[] bytes;
-
-	if (USING_COMPRESSION) {
-
-	    // Compress payload (optional)
-	    bytes = new SparkplugBPayloadEncoder().getBytes(PayloadUtil.compress(payload, compressionAlgorithm));
-
-	} else {
-
-	    bytes = new SparkplugBPayloadEncoder().getBytes(payload);
-
-	}
-
-	return bytes;
-
-    }
 
     public String getServerPassword() {
 
