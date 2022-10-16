@@ -15,8 +15,8 @@ import org.eclipse.tahu.message.model.SparkplugBPayload;
 import org.eclipse.tahu.message.model.Template;
 import org.eclipse.tahu.message.model.Template.TemplateBuilder;
 
+import it.nm.sparkplugha.SPHANode;
 import it.nm.sparkplugha.model.SPHAFeature;
-import it.nm.sparkplugha.model.SPHANode;
 
 public class OTAClientFeature extends SPHAFeature {
 

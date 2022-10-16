@@ -4,6 +4,8 @@ import org.eclipse.tahu.message.model.EdgeNodeDescriptor;
 import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.Template;
 
+import it.nm.sparkplugha.SPHANode;
+
 public abstract class SPHAFeature {
 
     public SPHAFeature(String name, SPHANode node) {

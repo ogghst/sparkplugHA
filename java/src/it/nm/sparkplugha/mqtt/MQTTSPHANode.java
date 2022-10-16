@@ -29,12 +29,17 @@ import org.eclipse.tahu.message.model.SparkplugBPayload;
 import org.eclipse.tahu.util.CompressionAlgorithm;
 import org.eclipse.tahu.util.PayloadUtil;
 
+import it.nm.sparkplugha.SPHANode;
 import it.nm.sparkplugha.Utils;
-import it.nm.sparkplugha.model.SPHAEdgeNode;
 import it.nm.sparkplugha.model.SPHAFeature;
-import it.nm.sparkplugha.model.SPHANode;
 
 public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExtended {
+
+    public MQTTSPHANode(String groupId, String edgeNodeId, SPHANodeState state, SparkplugBPayload payload) {
+
+	super(groupId, edgeNodeId, state, payload);
+
+    }
 
     private final static Logger LOGGER = Logger.getLogger(MQTTSPHANode.class.getName());
 
@@ -76,7 +81,7 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 	options.setUserName(serverUsername);
 	options.setPassword(serverPassword.toCharArray());
 
-	options.setWill(NAMESPACE + "/" + groupId + "/" + MessageType.NDEATH + "/" + edgeNodeId,
+	options.setWill(NAMESPACE + "/" + getGroupId() + "/" + MessageType.NDEATH + "/" + getEdgeNodeId(),
 		payloadToBytes(createNodeDeathPayload()), 0, false);
 
 	client = new MqttClient(serverUrl, clientId);
@@ -88,8 +93,8 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
 	// Subscribe to control/command messages for both the edge of network node and
 	// the attached devices
-	client.subscribe(NAMESPACE + "/" + groupId + "/" + MessageType.NCMD + "/" + edgeNodeId + "/#", 0);
-	client.subscribe(NAMESPACE + "/" + groupId + "/" + MessageType.DCMD + "/" + edgeNodeId + "/#", 0);
+	client.subscribe(NAMESPACE + "/" + getGroupId() + "/" + MessageType.NCMD + "/" + getEdgeNodeId() + "/#", 0);
+	client.subscribe(NAMESPACE + "/" + getGroupId() + "/" + MessageType.DCMD + "/" + getEdgeNodeId() + "/#", 0);
 
 	// TODO manage SCADA state message
 	client.subscribe(Utils.SCADA_NAMESPACE + "/#", 0);
@@ -137,7 +142,7 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
 	    LOGGER.fine("	Listening Device Data Topic = '" + dataTopics[i] + "'");
 
-	    client.subscribe(NAMESPACE + "/" + groupId + "/" + MessageType.DDATA + "/+/" + dataTopics[i], 0);
+	    client.subscribe(NAMESPACE + "/" + getGroupId() + "/" + MessageType.DDATA + "/+/" + dataTopics[i], 0);
 
 	}
 
@@ -187,12 +192,12 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
     protected void disconnect() throws Exception {
 
-	client.unsubscribe(NAMESPACE + "/" + groupId + "/" + MessageType.NCMD + "/" + edgeNodeId + "/#");
+	client.unsubscribe(NAMESPACE + "/" + getGroupId() + "/" + MessageType.NCMD + "/" + getEdgeNodeId() + "/#");
 	// client.unsubscribe(NAMESPACE + "/" + groupId + "/NDATA/" + edgeNode + "/#");
 	// client.unsubscribe(NAMESPACE + "/" + groupId + "/DCMD/" + edgeNode + "/#");
 	// client.unsubscribe(NAMESPACE + "/#");
 
-	new MQTTPublisher(client, NAMESPACE + "/" + groupId + "/" + MessageType.NDEATH + "/" + edgeNodeId,
+	new MQTTPublisher(client, NAMESPACE + "/" + getGroupId() + "/" + MessageType.NDEATH + "/" + getEdgeNodeId(),
 		createNodeDeathPayload(), 1, true, USING_COMPRESSION).publish();
 
 	client.disconnect();
@@ -260,8 +265,8 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
 	}
 
-	if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(groupId) && splitTopic[2].equals("NCMD")
-		&& splitTopic[3].equals(edgeNodeId)) {
+	if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(getGroupId()) && splitTopic[2].equals("NCMD")
+		&& splitTopic[3].equals(getEdgeNodeId())) {
 
 	    for (Metric metric : inboundPayload.getMetrics()) {
 
@@ -338,8 +343,8 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 	    // Vector<String>(Arrays.asList(feature.getListeningDeviceCommandTopics()));
 
 	    // addressed directly to the feature
-	    if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(groupId) && splitTopic[2].equals("DCMD")
-		    && splitTopic[3].equals(edgeNodeId) && splitTopic[4].equals(feature.getTopic())) {
+	    if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(getGroupId()) && splitTopic[2].equals("DCMD")
+		    && splitTopic[3].equals(getEdgeNodeId()) && splitTopic[4].equals(feature.getTopic())) {
 
 		for (Metric metric : inboundPayload.getMetrics()) {
 
@@ -350,7 +355,7 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 	    }
 
 	    // message to a listening topic
-	    else if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(groupId) && splitTopic[2].equals("DDATA")
+	    else if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(getGroupId()) && splitTopic[2].equals("DDATA")
 		    && !splitTopic[3].equals(getEdgeNodeId()) && dT.contains(splitTopic[4])) {
 
 		for (Metric metric : inboundPayload.getMetrics()) {
@@ -383,8 +388,8 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 	synchronized (seqLock) {
 
 	    // Reset the sequence number
-	    resetSeqNum();
-	    executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + groupId + "/NBIRTH/" + edgeNodeId, payload, 0,
+	    resetSeq();
+	    executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + getGroupId() + "/NBIRTH/" + getEdgeNodeId(), payload, 0,
 		    false, USING_COMPRESSION));
 
 	}
@@ -407,7 +412,8 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
 	    synchronized (seqLock) {
 
-		executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + groupId + "/NDATA/" + edgeNodeId, payload,
+		payload.setSeq(increaseSeq());
+		executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + getGroupId() + "/NDATA/" + getEdgeNodeId(), payload,
 			0, false, USING_COMPRESSION));
 
 	    }
@@ -422,12 +428,13 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
     }
 
     @Override
-    public void publishNodeCommand(SPHAEdgeNode descriptor, SparkplugBPayload payload) throws Exception {
+    public void publishNodeCommand(SPHANode descriptor, SparkplugBPayload payload) throws Exception {
 
 	if (client.isConnected()) {
 
 	    synchronized (seqLock) {
 
+		payload.setSeq(increaseSeq());
 		executor.execute(new MQTTPublisher(client,
 			NAMESPACE + "/" + descriptor.getGroupId() + "/NCMD/" + descriptor.getEdgeNodeId(), payload, 0,
 			false, USING_COMPRESSION));
@@ -450,8 +457,9 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
 	    synchronized (seqLock) {
 
+		payload.setSeq(increaseSeq());
 		executor.execute(new MQTTPublisher(client,
-			NAMESPACE + "/" + groupId + "/DDATA/" + edgeNodeId + "/" + feature.getTopic(), payload, 0,
+			NAMESPACE + "/" + getGroupId() + "/DDATA/" + getEdgeNodeId() + "/" + feature.getTopic(), payload, 0,
 			false, USING_COMPRESSION));
 
 	    }
@@ -473,6 +481,7 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 
 	    synchronized (seqLock) {
 
+		payload.setSeq(increaseSeq());
 		executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + descriptor.getGroupId() + "/DCMD/"
 			+ descriptor.getEdgeNodeId() + "/" + feature.getTopic(), payload, 0, false, USING_COMPRESSION));
 
@@ -492,8 +501,8 @@ public abstract class MQTTSPHANode extends SPHANode implements MqttCallbackExten
 	synchronized (seqLock) {
 
 	    // Reset the sequence number
-	    resetSeqNum();
-	    executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + groupId + "/NDEATH/" + edgeNodeId, payload, 0,
+	    resetSeq();
+	    executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + getGroupId() + "/NDEATH/" + getEdgeNodeId(), payload, 0,
 		    false, false));
 
 	}

@@ -42,11 +42,9 @@ public class OTAServerNode extends MQTTSPHANode {
 
     public OTAServerNode() throws Exception {
 
-	super();
+	super("SparkplugHA", "JavaHelloOTAServer", SPHANodeState.OFFLINE, null);
 
 	setServerUrl("tcp://localhost:1883");
-	setGroupId("SparkplugHA");
-	setEdgeNodeId("JavaHelloOTAServer");
 	setClientId("JavaHelloOTAServerEdgeNode");
 	setServerUsername("admin");
 	setServerPassword("changeme");

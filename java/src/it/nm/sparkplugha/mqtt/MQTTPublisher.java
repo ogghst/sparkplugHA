@@ -122,6 +122,8 @@ public class MQTTPublisher implements Runnable {
 
 	if (bytePayload != null) {
 
+	    LOGGER.fine("Publishing on topic '"+topic+"' : '"+new String(bytePayload));
+	    
 	    if (compression) {
 
 		client.publish(topic, compress(bytePayload), qos, retained);
@@ -137,6 +139,8 @@ public class MQTTPublisher implements Runnable {
 	    sparkplugPayload.setTimestamp(new Date());
 	    SparkplugBPayloadEncoder encoder = new SparkplugBPayloadEncoder();
 
+	    LOGGER.fine("Publishing on topic '"+topic+"' : '"+new String(sparkplugPayload.toString()));
+	    
 	    if (compression) {
 
 		client.publish(topic, encoder.getBytes(PayloadUtil.compress(sparkplugPayload, compressionAlgorithm)),

@@ -1,4 +1,4 @@
-package it.nm.sparkplugha.model;
+package it.nm.sparkplugha;
 
 import static org.eclipse.tahu.message.model.MetricDataType.Int64;
 
@@ -16,19 +16,28 @@ import org.eclipse.tahu.message.model.MetricDataType;
 import org.eclipse.tahu.message.model.SparkplugBPayload;
 import org.eclipse.tahu.message.model.SparkplugBPayload.SparkplugBPayloadBuilder;
 
+import com.fasterxml.jackson.annotation.JsonValue;
+
 import it.nm.sparkplugha.exceptions.SpHAMetricNotFoundException;
+import it.nm.sparkplugha.model.SPHAFeature;
+import it.nm.sparkplugha.model.SPHAMetric;
 
 public abstract class SPHANode {
 
+    protected static final String NAMESPACE = "spBv1.0";
+    private static final String NODE_CONTROL_SCAN_RATE = "Node Control/Scan Rate";
+    private static final String NODE_CONTROL_NEXT_SERVER = "Node Control/Next Server";
+    private static final String NODE_CONTROL_REBOOT = "Node Control/Reboot";
+    private static final String NODE_CONTROL_REBIRTH = "Node Control/Rebirth";
+    private static final String BD_SEQ = "bdSeq";
+
     protected String hwVersion = "Emulated Hardware";
     protected String swVersion = "v1.0.0";
-    protected static final String NAMESPACE = "spBv1.0";
-    protected String groupId = "SparkplugHA";
-    protected String edgeNodeId = "NDEDGENODE";
+
     protected String clientId = "NDCLIENTID";
 
     private int bdSeq = 0;
-    private int seq = 0;
+    private long seq = 0;
 
     private Object seqLock = new Object();
 
@@ -37,13 +46,88 @@ public abstract class SPHANode {
 
     private SparkplugBPayload nodeBirthPayload;
 
+    private SPHANodeState state;
+    private SparkplugBPayload payload;
+
+    public enum SPHANodeState {
+	OFFLINE, ONLINE
+    }
+
+    private final String groupId;
+    private final String edgeNodeId;
+
+    public String getGroupId() {
+
+	return groupId;
+
+    }
+
+    public String getEdgeNodeId() {
+
+	return edgeNodeId;
+
+    }
+
+    public String getDescriptorString() {
+
+	return groupId + "/" + edgeNodeId;
+
+    }
+
+    @Override
+    public int hashCode() {
+
+	return this.getDescriptorString().hashCode();
+
+    }
+
+    @Override
+    public boolean equals(Object object) {
+
+	if (object instanceof EdgeNodeDescriptor) {
+
+	    return this.getDescriptorString().equals(((EdgeNodeDescriptor) object).getDescriptorString());
+
+	}
+
+	return this.getDescriptorString().equals(object);
+
+    }
+
+    @Override
+    @JsonValue
+    public String toString() {
+
+	return getDescriptorString();
+
+    }
+
     private final static Logger LOGGER = Logger.getLogger(SPHANode.class.getName());
 
-    public SPHANode() {
+    public SPHANode(String groupId, String edgeNodeId, SPHANodeState state, SparkplugBPayload payload) {
 
-	super();
 	metrics = new Hashtable<String, SPHAMetric>();
 	features = new Hashtable<String, SPHAFeature>();
+	this.groupId = groupId;
+	this.edgeNodeId = edgeNodeId;
+	this.state = state;
+	this.seq = 0;
+	this.payload = payload;
+
+	buildMetrics(payload);
+	buildFeatures(payload);
+
+    }
+
+    private void buildFeatures(SparkplugBPayload payload) {
+
+	// TODO Auto-generated method stub
+
+    }
+
+    private void buildMetrics(SparkplugBPayload payload) {
+
+	// TODO Auto-generated method stub
 
     }
 
@@ -71,7 +155,7 @@ public abstract class SPHANode {
 
 	}
 
-	deathPayload.addMetric(new MetricBuilder("bdSeq", Int64, (long) bdSeq).createMetric());
+	deathPayload.addMetric(new MetricBuilder(BD_SEQ, Int64, (long) bdSeq).createMetric());
 	bdSeq++;
 
 	return deathPayload.createPayload();
@@ -88,12 +172,12 @@ public abstract class SPHANode {
 	    // Create the BIRTH payload and set the position and other metrics
 	    SparkplugBPayload payload = createPayload();
 
-	    payload.addMetric(new MetricBuilder("bdSeq", Int64, (long) bdSeq).createMetric());
-	    payload.addMetric(new MetricBuilder("Node Control/Rebirth", MetricDataType.Boolean, false).createMetric());
-	    payload.addMetric(new MetricBuilder("Node Control/Reboot", MetricDataType.Boolean, false).createMetric());
+	    payload.addMetric(new MetricBuilder(BD_SEQ, Int64, (long) bdSeq).createMetric());
+	    payload.addMetric(new MetricBuilder(NODE_CONTROL_REBIRTH, MetricDataType.Boolean, false).createMetric());
+	    payload.addMetric(new MetricBuilder(NODE_CONTROL_REBOOT, MetricDataType.Boolean, false).createMetric());
 	    payload.addMetric(
-		    new MetricBuilder("Node Control/Next Server", MetricDataType.Boolean, false).createMetric());
-	    payload.addMetric(new MetricBuilder("Node Control/Scan Rate", MetricDataType.Int64, 1000l).createMetric());
+		    new MetricBuilder(NODE_CONTROL_NEXT_SERVER, MetricDataType.Boolean, false).createMetric());
+	    payload.addMetric(new MetricBuilder(NODE_CONTROL_SCAN_RATE, MetricDataType.Int64, 1000l).createMetric());
 
 	    for (SPHAMetric metric : metrics.values()) {
 
@@ -118,8 +202,8 @@ public abstract class SPHANode {
 
     public SparkplugBPayload createPayload() {
 
-	SparkplugBPayload payload = new SparkplugBPayload(new Date(), new ArrayList<Metric>(), getSeqNum(), newUUID(),
-		null);
+	SparkplugBPayload payload = new SparkplugBPayload(new Date(), new ArrayList<Metric>(), getSeq(),
+		newUUID(), null);
 	return payload;
 
     }
@@ -172,13 +256,11 @@ public abstract class SPHANode {
 
 	}
 
-	publishNodeData(createSPHAMetricPayload(metric));
-
 	return metric;
 
     }
 
-    public long getSeqNum() {
+    public long increaseSeq() {
 
 	if (seq == 256) {
 
@@ -186,11 +268,23 @@ public abstract class SPHANode {
 
 	}
 
-	return seq++;
+	return ++seq;
 
     }
 
-    public long resetSeqNum() {
+    public long getSeq() {
+
+	return seq;
+
+    }
+
+    public void setSeq(long seq) {
+
+	this.seq = seq;
+
+    }
+
+    public long resetSeq() {
 
 	seq = 0;
 	return seq;
@@ -227,30 +321,6 @@ public abstract class SPHANode {
 
     }
 
-    public String getGroupId() {
-
-	return groupId;
-
-    }
-
-    public void setGroupId(String groupId) {
-
-	this.groupId = groupId;
-
-    }
-
-    public String getEdgeNodeId() {
-
-	return edgeNodeId;
-
-    }
-
-    public void setEdgeNodeId(String edgeNodeId) {
-
-	this.edgeNodeId = edgeNodeId;
-
-    }
-
     public String getClientId() {
 
 	return clientId;
@@ -269,19 +339,37 @@ public abstract class SPHANode {
 
     }
 
+    public void setState(SPHANodeState state) {
+
+	LOGGER.fine("State: " + state);
+	this.state = state;
+
+    }
+
+    public SPHANodeState getState() {
+
+	return state;
+
+    }
+
+    public SparkplugBPayload getPayload() {
+
+	return payload;
+
+    }
+
+    public void setPayload(SparkplugBPayload payload) {
+
+	this.payload = payload;
+	buildFeatures(payload);
+	buildMetrics(payload);
+
+    }
+
     public void setNodeBirthPayload(SparkplugBPayload nodeBirthPayload) {
 
 	this.nodeBirthPayload = nodeBirthPayload;
 
     }
-
-    public abstract void publishNodeData(SparkplugBPayload payload) throws Exception;
-
-    public abstract void publishNodeCommand(SPHAEdgeNode descriptor, SparkplugBPayload payload) throws Exception;
-
-    public abstract void publishFeatureData(SPHAFeature feature, SparkplugBPayload payload) throws Exception;
-
-    public abstract void publishFeatureCommand(SPHAFeature feature, EdgeNodeDescriptor descriptor,
-	    SparkplugBPayload payload) throws Exception;
 
 }

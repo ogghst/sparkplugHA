@@ -8,7 +8,7 @@ import org.eclipse.tahu.message.model.MetricDataType;
 
 public class SPHAMetric extends Metric {
 
-    protected SPHAMetric(String name, MetricDataType type, Object value) throws SparkplugInvalidTypeException {
+    public SPHAMetric(String name, MetricDataType type, Object value) throws SparkplugInvalidTypeException {
 
 	super(name, (long) 0, new Date(), type, false, false, null, null, value);
 

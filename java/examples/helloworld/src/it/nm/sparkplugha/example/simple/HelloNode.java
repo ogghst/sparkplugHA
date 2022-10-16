@@ -28,11 +28,10 @@ public class HelloNode extends MQTTSPHANode {
 
     public HelloNode() throws Exception {
 
-	super();
+	super("SparkplugHA", "JavaHelloNode", SPHANodeState.OFFLINE, null);
 
 	setServerUrl("tcp://localhost:1883");
-	setGroupId("SparkplugHA");
-	setEdgeNodeId("JavaHelloNode");
+
 	setClientId("JavaHelloEdgeNode");
 	setServerUsername("admin");
 	setServerPassword("changeme");
@@ -51,7 +50,7 @@ public class HelloNode extends MQTTSPHANode {
     public void run() throws Exception {
 
 	helloWorldMetric.setValue("Hello, World! - Message " + (++count));
-	updateSPHAMetric(helloWorldMetric);
+	publishNodeData(createSPHAMetricPayload(updateSPHAMetric(helloWorldMetric)));
 	LOGGER.info("Sent Hello World");
 
     }

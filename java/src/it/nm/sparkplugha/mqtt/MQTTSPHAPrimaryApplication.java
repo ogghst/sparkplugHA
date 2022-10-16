@@ -33,14 +33,20 @@ import org.eclipse.tahu.message.model.Topic;
 import org.eclipse.tahu.util.CompressionAlgorithm;
 import org.eclipse.tahu.util.TopicUtil;
 
+import it.nm.sparkplugha.SPHANode;
+import it.nm.sparkplugha.SPHANodeRemote;
+import it.nm.sparkplugha.SPHANode.SPHANodeState;
+import it.nm.sparkplugha.events.SPHADeviceBirthEvent;
+import it.nm.sparkplugha.events.SPHADeviceCommandEvent;
+import it.nm.sparkplugha.events.SPHADeviceDataEvent;
 import it.nm.sparkplugha.events.SPHAEventManager;
 import it.nm.sparkplugha.events.SPHAMQTTConnectEvent;
+import it.nm.sparkplugha.events.SPHAMQTTConnectLossEvent;
 import it.nm.sparkplugha.events.SPHANodeBirthEvent;
+import it.nm.sparkplugha.events.SPHANodeCommandEvent;
 import it.nm.sparkplugha.events.SPHANodeDataEvent;
 import it.nm.sparkplugha.events.SPHANodeDeathEvent;
 import it.nm.sparkplugha.events.SPHANodeOutOfSequenceEvent;
-import it.nm.sparkplugha.model.SPHAEdgeNode;
-import it.nm.sparkplugha.model.SPHAEdgeNode.SPHANodeState;
 
 public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 
@@ -73,9 +79,8 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
     protected MqttClient client;
     private String hostId = "undefinedHostId";
     private CompressionAlgorithm compressionAlgorithm = CompressionAlgorithm.GZIP;
-    private final Map<EdgeNodeDescriptor, SPHAEdgeNode> edgeNodeMap;
+    private final Map<EdgeNodeDescriptor, SPHANode> edgeNodeMap;
     private ExecutorService executor;
-    private String primaryHostId = "UndefinedPrimaryHostId";
     private final Map<EdgeNodeDescriptor, Timer> rebirthTimers;
     public SPHAEventManager evtMgr;
 
@@ -126,9 +131,9 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 	    options.setUserName(serverUsername);
 	    options.setPassword(serverPassword.toCharArray());
 
-	    if (primaryHostId != null && !primaryHostId.isEmpty()) {
+	    if (hostId != null && !hostId.isEmpty()) {
 
-		options.setWill(HOST_NAMESPACE + "/" + primaryHostId, willPayload, 1, true);
+		options.setWill(HOST_NAMESPACE + "/" + hostId, willPayload, 1, true);
 
 	    }
 
@@ -137,15 +142,13 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 	    client.setCallback(this); // short timeout on failure to connect
 	    client.connect(options);
 
-	    evtMgr.trigger(new SPHAMQTTConnectEvent(client));
-
 	    // Subscribe to control/command messages for both the edge of network node and
 	    // the attached devices
 	    client.subscribe(NAMESPACE + "/#", 0);
 
-	    if (primaryHostId != null && !primaryHostId.isEmpty()) {
+	    if (hostId != null && !hostId.isEmpty()) {
 
-		client.subscribe(HOST_NAMESPACE + "/" + primaryHostId, 0);
+		client.subscribe(HOST_NAMESPACE + "/" + hostId, 0);
 
 	    }
 
@@ -160,6 +163,7 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
     @Override
     public void connectComplete(boolean reconnect, String serverURI) {
 
+	evtMgr.trigger(new SPHAMQTTConnectEvent(client));
 	LOGGER.info("Connected! - publishing birth");
 	publishHostBirth();
 
@@ -168,7 +172,8 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
     @Override
     public void connectionLost(Throwable cause) {
 
-	LOGGER.log(Level.WARNING, "The MQTT Connection was lost! - will auto-reconnect", cause);
+	evtMgr.trigger(new SPHAMQTTConnectLossEvent(client, cause));
+	LOGGER.log(Level.SEVERE, "The MQTT Connection was lost! - will auto-reconnect", cause);
 
     }
 
@@ -213,10 +218,25 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 
     }
 
-    private boolean handleSeqNumberCheck(SPHAEdgeNode edgeNode, long incomingSeqNum) {
+    private boolean handleSeqNumberCheck(SPHANode edgeNode, long incomingSeqNum, Topic topic) {
+
+	if (topic.getType().equals(MessageType.NBIRTH)) {
+
+	    if (incomingSeqNum != 0) {
+
+		LOGGER.severe("birth sequence of node '" + edgeNode.getDescriptorString() + "' is " + incomingSeqNum
+			+ ", expecting 0. node offline and rebirth is necessary");
+		return false;
+
+	    }
+
+	    edgeNode.setSeq(incomingSeqNum);
+	    return true;
+
+	}
 
 	// Get the last stored sequence number
-	Long storedSeqNum = edgeNode.getLastSeqNumber();
+	long storedSeqNum = edgeNode.getSeq();
 	// Conditionally wrap to 0
 	long expectedSeqNum = storedSeqNum + 1 == 256 ? 0 : storedSeqNum + 1;
 
@@ -225,15 +245,11 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 
 	    LOGGER.severe("sequence of node '" + edgeNode.getDescriptorString() + "' is " + incomingSeqNum
 		    + ", expecting " + expectedSeqNum + ". node offline and rebirth is necessary");
-	    // Sequence number is INVALID, set Edge Node offline
-	    // edgeNode.setState(SPHANodeState.OFFLINE);
-	    // evtMgr.trigger(new SPHANodeOutOfSequenceEvent(edgeNode));
-	    // Request a rebirth
 	    return false;
 
 	} else {
 
-	    edgeNode.setLastSeqNumber(incomingSeqNum);
+	    edgeNode.setSeq(incomingSeqNum);
 	    return true;
 
 	}
@@ -273,19 +289,39 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 
 	    // Get the payload
 	    SparkplugBPayloadDecoder decoder = new SparkplugBPayloadDecoder();
-	    SparkplugBPayload payload = decoder.buildFromByteArray(message.getPayload());
+
+	    SparkplugBPayload payload;
+
+	    try {
+
+		payload = decoder.buildFromByteArray(message.getPayload());
+
+	    } catch (Exception e) {
+
+		LOGGER.log(Level.SEVERE, "Error decoding payload", e);
+		return;
+
+	    }
 
 	    // Get the EdgeNodeDescriptor
 	    EdgeNodeDescriptor edgeNodeDescriptor = new EdgeNodeDescriptor(topic.getGroupId(), topic.getEdgeNodeId());
 
-	    // Special case for NBIRTH
-	    SPHAEdgeNode edgeNode = edgeNodeMap.get(edgeNodeDescriptor);
+	    SPHANode edgeNode = edgeNodeMap.get(edgeNodeDescriptor);
 
+	    // Special case for NBIRTH
 	    if (topic.getType().equals(MessageType.NBIRTH)) {
 
-		edgeNode = new SPHAEdgeNode(topic.getGroupId(), topic.getEdgeNodeId(), SPHANodeState.ONLINE, payload);
+		edgeNode = new SPHANodeRemote(topic.getGroupId(), topic.getEdgeNodeId(), SPHANodeState.ONLINE, payload);
 		edgeNodeMap.put(edgeNodeDescriptor, edgeNode);
-		evtMgr.trigger(new SPHANodeBirthEvent(edgeNode));
+
+	    }
+
+	    // Special case for NDEATH
+	    if (topic.getType().equals(MessageType.NDEATH)) {
+
+		edgeNode = new SPHANodeRemote(topic.getGroupId(), topic.getEdgeNodeId(), SPHANodeState.OFFLINE,
+			payload);
+		edgeNodeMap.put(edgeNodeDescriptor, edgeNode);
 
 	    }
 
@@ -297,28 +333,32 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 		return;
 
 	    }
-	    
-	    edgeNode.setPayload(payload);
 
 	    if (topic.getType().equals(MessageType.NDEATH)) {
 
-		if (edgeNodeMap.get(edgeNodeDescriptor) == null)
-		    return;
-
 		edgeNodeMap.get(edgeNodeDescriptor).setState(SPHANodeState.OFFLINE);
 		evtMgr.trigger(new SPHANodeDeathEvent(edgeNode));
+		return;
 
 	    }
 
 	    // Check the sequence number
-	    if (handleSeqNumberCheck(edgeNode, payload.getSeq())) {
+	    if (handleSeqNumberCheck(edgeNode, payload.getSeq(), topic)) {
 
 		LOGGER.fine("Validated sequence number on topic: " + topic);
 
-		for (Metric metric : payload.getMetrics()) {
+		// now inject the payload to the node
+		edgeNode.setPayload(payload);
 
-		    LOGGER.fine("Metric: " + metric.getName() + " - type: " + metric.getDataType() + " - value: "
-			    + metric.getValue());
+		if (topic.getType().equals(MessageType.NBIRTH)) {
+
+		    evtMgr.trigger(new SPHANodeBirthEvent(edgeNode));
+
+		}
+
+		if (topic.getType().equals(MessageType.DBIRTH)) {
+
+		    evtMgr.trigger(new SPHADeviceBirthEvent(edgeNode));
 
 		}
 
@@ -328,9 +368,27 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 
 		}
 
+		if (topic.getType().equals(MessageType.DDATA)) {
+
+		    evtMgr.trigger(new SPHADeviceDataEvent(edgeNode));
+
+		}
+
+		if (topic.getType().equals(MessageType.NCMD)) {
+
+		    evtMgr.trigger(new SPHANodeCommandEvent(edgeNode));
+
+		}
+
+		if (topic.getType().equals(MessageType.DCMD)) {
+
+		    evtMgr.trigger(new SPHADeviceCommandEvent(edgeNode));
+
+		}
+
 	    } else {
 
-		requestRebirth(edgeNode);
+		requestRebirth(edgeNodeDescriptor);
 
 	    }
 
@@ -355,11 +413,11 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 
 	try {
 
-	    if (primaryHostId != null && !primaryHostId.isEmpty()) {
+	    if (hostId != null && !hostId.isEmpty()) {
 
 		LOGGER.info("Publishing Host Birth");
-		executor.execute(new MQTTPublisher(client, HOST_NAMESPACE + "/" + primaryHostId, "ONLINE".getBytes(), 1,
-			true, USING_COMPRESSION));
+		executor.execute(new MQTTPublisher(client, HOST_NAMESPACE + "/" + hostId, "ONLINE".getBytes(), 1, true,
+			USING_COMPRESSION));
 
 	    }
 
@@ -384,7 +442,7 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 		rebirthTimers.put(edgeNodeDescriptor, rebirthDelayTimer);
 		rebirthDelayTimer.schedule(new RebirthDelayTask(edgeNodeDescriptor), 5000);
 
-		SPHAEdgeNode edgeNode = edgeNodeMap.get(edgeNodeDescriptor);
+		SPHANode edgeNode = edgeNodeMap.get(edgeNodeDescriptor);
 
 		if (edgeNode != null) {
 
