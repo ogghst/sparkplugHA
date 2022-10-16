@@ -17,6 +17,7 @@ import org.eclipse.tahu.message.model.Template.TemplateBuilder;
 
 import it.nm.sparkplugha.SPHANode;
 import it.nm.sparkplugha.model.SPHAFeature;
+import it.nm.sparkplugha.mqtt.MQTTSPHANode;
 
 public class OTAServerFeature extends SPHAFeature {
 
@@ -60,7 +61,7 @@ public class OTAServerFeature extends SPHAFeature {
 		    .templateRef(FWAVAILABLEMETRIC).definition(false).addParameters(params).createTemplate())
 		    .createMetric());
 
-	    getNode().publishFeatureCommand(this, node, payload);
+	    ((MQTTSPHANode) getNode()).publishFeatureCommand(this, node, payload);
 
 	}
 

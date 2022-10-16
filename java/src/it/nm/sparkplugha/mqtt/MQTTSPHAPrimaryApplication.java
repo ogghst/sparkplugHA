@@ -24,7 +24,6 @@ import org.eclipse.tahu.SparkplugParsingException;
 import org.eclipse.tahu.message.SparkplugBPayloadDecoder;
 import org.eclipse.tahu.message.model.EdgeNodeDescriptor;
 import org.eclipse.tahu.message.model.MessageType;
-import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.Metric.MetricBuilder;
 import org.eclipse.tahu.message.model.MetricDataType;
 import org.eclipse.tahu.message.model.SparkplugBPayload;
@@ -34,8 +33,8 @@ import org.eclipse.tahu.util.CompressionAlgorithm;
 import org.eclipse.tahu.util.TopicUtil;
 
 import it.nm.sparkplugha.SPHANode;
-import it.nm.sparkplugha.SPHANodeRemote;
 import it.nm.sparkplugha.SPHANode.SPHANodeState;
+import it.nm.sparkplugha.SPHANodeRemote;
 import it.nm.sparkplugha.events.SPHADeviceBirthEvent;
 import it.nm.sparkplugha.events.SPHADeviceCommandEvent;
 import it.nm.sparkplugha.events.SPHADeviceDataEvent;
