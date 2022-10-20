@@ -24,6 +24,7 @@ import org.eclipse.tahu.SparkplugParsingException;
 import org.eclipse.tahu.message.SparkplugBPayloadDecoder;
 import org.eclipse.tahu.message.model.EdgeNodeDescriptor;
 import org.eclipse.tahu.message.model.MessageType;
+import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.Metric.MetricBuilder;
 import org.eclipse.tahu.message.model.MetricDataType;
 import org.eclipse.tahu.message.model.SparkplugBPayload;
@@ -32,9 +33,6 @@ import org.eclipse.tahu.message.model.Topic;
 import org.eclipse.tahu.util.CompressionAlgorithm;
 import org.eclipse.tahu.util.TopicUtil;
 
-import it.nm.sparkplugha.SPHANode;
-import it.nm.sparkplugha.SPHANode.SPHANodeState;
-import it.nm.sparkplugha.SPHANodeRemote;
 import it.nm.sparkplugha.events.SPHADeviceBirthEvent;
 import it.nm.sparkplugha.events.SPHADeviceCommandEvent;
 import it.nm.sparkplugha.events.SPHADeviceDataEvent;
@@ -46,6 +44,9 @@ import it.nm.sparkplugha.events.SPHANodeCommandEvent;
 import it.nm.sparkplugha.events.SPHANodeDataEvent;
 import it.nm.sparkplugha.events.SPHANodeDeathEvent;
 import it.nm.sparkplugha.events.SPHANodeOutOfSequenceEvent;
+import it.nm.sparkplugha.model.SPHANode;
+import it.nm.sparkplugha.model.SPHANode.SPHANodeState;
+import it.nm.sparkplugha.model.SPHANodeRemote;
 
 public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 
@@ -78,7 +79,7 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
     protected MqttClient client;
     private String hostId = "undefinedHostId";
     private CompressionAlgorithm compressionAlgorithm = CompressionAlgorithm.GZIP;
-    private final Map<EdgeNodeDescriptor, SPHANode> edgeNodeMap;
+    private final Map<EdgeNodeDescriptor, SPHANodeRemote> edgeNodeMap;
     private ExecutorService executor;
     private final Map<EdgeNodeDescriptor, Timer> rebirthTimers;
     public SPHAEventManager evtMgr;
@@ -162,8 +163,8 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
     @Override
     public void connectComplete(boolean reconnect, String serverURI) {
 
-	evtMgr.trigger(new SPHAMQTTConnectEvent(client));
 	LOGGER.info("Connected! - publishing birth");
+	evtMgr.trigger(new SPHAMQTTConnectEvent(client));
 	publishHostBirth();
 
     }
@@ -171,8 +172,8 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
     @Override
     public void connectionLost(Throwable cause) {
 
+	LOGGER.log(Level.SEVERE, "The MQTT Connection was lost! reason: " + cause.getMessage(), cause);
 	evtMgr.trigger(new SPHAMQTTConnectLossEvent(client, cause));
-	LOGGER.log(Level.SEVERE, "The MQTT Connection was lost! - will auto-reconnect", cause);
 
     }
 
@@ -305,12 +306,12 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 	    // Get the EdgeNodeDescriptor
 	    EdgeNodeDescriptor edgeNodeDescriptor = new EdgeNodeDescriptor(topic.getGroupId(), topic.getEdgeNodeId());
 
-	    SPHANode edgeNode = edgeNodeMap.get(edgeNodeDescriptor);
+	    SPHANodeRemote edgeNode = edgeNodeMap.get(edgeNodeDescriptor);
 
 	    // Special case for NBIRTH
 	    if (topic.getType().equals(MessageType.NBIRTH)) {
 
-		edgeNode = new SPHANodeRemote(topic.getGroupId(), topic.getEdgeNodeId(), SPHANodeState.ONLINE, payload);
+		edgeNode = new SPHANodeRemote(topic, it.nm.sparkplugha.model.SPHANode.SPHANodeState.ONLINE, payload);
 		edgeNodeMap.put(edgeNodeDescriptor, edgeNode);
 
 	    }
@@ -318,8 +319,7 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 	    // Special case for NDEATH
 	    if (topic.getType().equals(MessageType.NDEATH)) {
 
-		edgeNode = new SPHANodeRemote(topic.getGroupId(), topic.getEdgeNodeId(), SPHANodeState.OFFLINE,
-			payload);
+		edgeNode = new SPHANodeRemote(topic, it.nm.sparkplugha.model.SPHANode.SPHANodeState.OFFLINE, payload);
 		edgeNodeMap.put(edgeNodeDescriptor, edgeNode);
 
 	    }
@@ -346,6 +346,13 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 
 		LOGGER.fine("Validated sequence number on topic: " + topic);
 
+		// Debug
+		for (Metric metric : payload.getMetrics()) {
+
+		    LOGGER.fine("	Metric " + metric.getName() + "=" + metric.getValue());
+
+		}
+		
 		// now inject the payload to the node
 		edgeNode.setPayload(payload);
 

@@ -4,8 +4,10 @@ import static org.eclipse.tahu.message.model.MetricDataType.String;
 
 import java.util.logging.Logger;
 
+import org.eclipse.tahu.message.model.Metric;
+import org.eclipse.tahu.message.model.SparkplugBPayload;
+
 import it.nm.sparkplugha.features.OTAClientFeature;
-import it.nm.sparkplugha.model.SPHAMetric;
 import it.nm.sparkplugha.model.devices.SPHAHVAC;
 import it.nm.sparkplugha.mqtt.MQTTSPHANode;
 
@@ -13,7 +15,7 @@ public class HelloNode extends MQTTSPHANode {
 
     private final static Logger LOGGER = Logger.getLogger(HelloNode.class.getName());
 
-    private SPHAMetric helloWorldMetric;
+    private Metric helloWorldMetric;
 
     private OTAClientFeature ota;
 
@@ -28,7 +30,7 @@ public class HelloNode extends MQTTSPHANode {
 
     public HelloNode() throws Exception {
 
-	super("SparkplugHA", "JavaHelloNode", SPHANodeState.OFFLINE, null);
+	super("SparkplugHA", "JavaHelloNode", SPHANodeState.OFFLINE);
 
 	setServerUrl("tcp://localhost:1883");
 
@@ -42,15 +44,16 @@ public class HelloNode extends MQTTSPHANode {
 	// hvac = new SPHAHVAC("HelloHVAC");
 	// addDevice(hvac);
 
-	helloWorldMetric = createSPHAMetric("helloWorldMetric", String, "uninitialized");
-	setNodeBirthPayload(createNodeBirthPayload());
+	helloWorldMetric = createMetric("helloWorldMetric", String, "uninitialized");
 
     }
 
     public void run() throws Exception {
 
+	SparkplugBPayload payload = createPayload();
 	helloWorldMetric.setValue("Hello, World! - Message " + (++count));
-	publishNodeData(createSPHAMetricPayload(updateSPHAMetric(helloWorldMetric)));
+	payload.addMetric(helloWorldMetric);
+	publishNodeData(payload);
 	LOGGER.info("Sent Hello World");
 
     }
@@ -89,14 +92,16 @@ public class HelloNode extends MQTTSPHANode {
 
 	Thread.sleep(5000);
 
-	node.askFirmware();
+	for (int i = 0; i < 5; i++) {
 
-	for (int i = 0; i < 60; i++) {
-
-	    Thread.sleep(3000);
+	    Thread.sleep(4000);
 	    node.run();
 
 	}
+
+	node.askFirmware();
+
+	Thread.sleep(4000);
 
 	node.disconnect();
 

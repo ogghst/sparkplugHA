@@ -15,11 +15,11 @@ import org.eclipse.tahu.message.model.SparkplugBPayload;
 import org.eclipse.tahu.message.model.Template;
 import org.eclipse.tahu.message.model.Template.TemplateBuilder;
 
-import it.nm.sparkplugha.SPHANode;
-import it.nm.sparkplugha.model.SPHAFeature;
+import it.nm.sparkplugha.model.SPHAFeatureLocal;
+import it.nm.sparkplugha.model.SPHANodeLocal;
 import it.nm.sparkplugha.mqtt.MQTTSPHANode;
 
-public class OTAServerFeature extends SPHAFeature {
+public class OTAServerFeature extends SPHAFeatureLocal {
 
     private final static Logger LOGGER = Logger.getLogger(OTAServerFeature.class.getName());
 
@@ -32,9 +32,10 @@ public class OTAServerFeature extends SPHAFeature {
 
     public static final String DEVICETOPIC = "OTA";
 
-    public OTAServerFeature(SPHANode node, String fwName, String fwVersion) throws Exception {
+    public OTAServerFeature(SPHANodeLocal node, String fwName, String fwVersion) throws Exception {
 
-	super("OTAServer", node);
+	//TODO better payload generation 
+	super("OTAServer", node, new SparkplugBPayload());
 	params.add(new Parameter(FWNAMEPROPERTY, ParameterDataType.String, fwName));
 	params.add(new Parameter(FWVERSIONPROPERTY, ParameterDataType.String, fwVersion));
 

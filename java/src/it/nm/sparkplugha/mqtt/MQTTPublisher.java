@@ -153,7 +153,9 @@ public class MQTTPublisher implements Runnable {
 	    }
 
 	} else {
-
+	    
+	    LOGGER.fine("Publishing on topic '"+topic+"' : null");
+	    
 	    client.publish(topic, null, 0, false);
 
 	}

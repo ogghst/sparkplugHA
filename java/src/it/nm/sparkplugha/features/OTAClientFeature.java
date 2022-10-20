@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import org.eclipse.tahu.SparkplugInvalidTypeException;
+import org.eclipse.tahu.message.model.DeviceDescriptor;
 import org.eclipse.tahu.message.model.EdgeNodeDescriptor;
 import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.Metric.MetricBuilder;
@@ -14,11 +15,13 @@ import org.eclipse.tahu.message.model.ParameterDataType;
 import org.eclipse.tahu.message.model.SparkplugBPayload;
 import org.eclipse.tahu.message.model.Template;
 import org.eclipse.tahu.message.model.Template.TemplateBuilder;
+import org.eclipse.tahu.message.model.Topic;
+import org.eclipse.tahu.util.TopicUtil;
 
-import it.nm.sparkplugha.SPHANode;
-import it.nm.sparkplugha.model.SPHAFeature;
+import it.nm.sparkplugha.model.SPHAFeatureLocal;
+import it.nm.sparkplugha.model.SPHANodeLocal;
 
-public class OTAClientFeature extends SPHAFeature {
+public class OTAClientFeature extends SPHAFeatureLocal {
 
     private final static Logger LOGGER = Logger.getLogger(OTAClientFeature.class.getName());
 
@@ -31,9 +34,10 @@ public class OTAClientFeature extends SPHAFeature {
 
     public static final String DEVICETOPIC = "OTA";
 
-    public OTAClientFeature(SPHANode node, String fwName, String fwVersion) throws SparkplugInvalidTypeException {
+    public OTAClientFeature(SPHANodeLocal node, String fwName, String fwVersion) throws SparkplugInvalidTypeException {
 
-	super("OTAClient", node);
+	//TODO better payload generation 
+	super("OTAClient", node, new SparkplugBPayload());
 	params.add(new Parameter(FWNAMEPROPERTY, ParameterDataType.String, fwName));
 	params.add(new Parameter(FWVERSIONPROPERTY, ParameterDataType.String, fwVersion));
 

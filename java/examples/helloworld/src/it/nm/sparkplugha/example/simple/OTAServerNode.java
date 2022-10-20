@@ -5,14 +5,11 @@ import java.util.logging.Logger;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 import it.nm.sparkplugha.features.OTAServerFeature;
-import it.nm.sparkplugha.model.SPHAMetric;
 import it.nm.sparkplugha.mqtt.MQTTSPHANode;
 
 public class OTAServerNode extends MQTTSPHANode {
 
     private final static Logger LOGGER = Logger.getLogger(OTAServerNode.class.getName());
-
-    private SPHAMetric helloWorldMetric;
 
     private OTAServerFeature ota;
 
@@ -42,7 +39,7 @@ public class OTAServerNode extends MQTTSPHANode {
 
     public OTAServerNode() throws Exception {
 
-	super("SparkplugHA", "JavaHelloOTAServer", SPHANodeState.OFFLINE, null);
+	super("SparkplugHA", "JavaHelloOTAServer", SPHANodeState.OFFLINE);
 
 	setServerUrl("tcp://localhost:1883");
 	setClientId("JavaHelloOTAServerEdgeNode");
@@ -51,7 +48,7 @@ public class OTAServerNode extends MQTTSPHANode {
 
 	ota = new OTAServerFeature(this, "fwName", "1.0.0");
 	addFeature(ota);
-	setNodeBirthPayload(createNodeBirthPayload());
+	publishNodeBirth();
 
     }
 

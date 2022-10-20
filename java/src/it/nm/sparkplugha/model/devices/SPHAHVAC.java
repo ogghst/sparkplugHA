@@ -1,14 +1,14 @@
 package it.nm.sparkplugha.model.devices;
 
+import java.util.Date;
+
 import org.eclipse.tahu.SparkplugInvalidTypeException;
 import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.MetricDataType;
 import org.eclipse.tahu.message.model.Template;
 import org.eclipse.tahu.message.model.Template.TemplateBuilder;
 
-import it.nm.sparkplugha.model.SPHAMetric;
-
-public class SPHAHVAC extends SPHAMetric {
+public class SPHAHVAC extends Metric {
 
     public static final String HVACTEMPLATE = "HVAC";
     public static final String VERSION = "1.0.0";
@@ -21,7 +21,7 @@ public class SPHAHVAC extends SPHAMetric {
 
     public SPHAHVAC(String name) throws SparkplugInvalidTypeException {
 
-	super(name, MetricDataType.Template, null);
+	super(name, (long) 0, new Date(), MetricDataType.Template, false, false, null, null, null);
 
 	value = new TemplateBuilder().version(VERSION).templateRef(HVACTEMPLATE).definition(true).createTemplate();
 
@@ -33,22 +33,16 @@ public class SPHAHVAC extends SPHAMetric {
 
     }
 
-    @Override
-    public Object getValue() {
-
-	return value;
-
-    }
 
     public void setSpeed(int speed) {
 
-	speedMetric.setValue(new Integer(speed));
+	speedMetric.setValue(speed);
 
     }
 
     public void setTemp(int temp) {
 
-	tempMetric.setValue(new Integer(temp));
+	tempMetric.setValue(temp);
 
     }
 

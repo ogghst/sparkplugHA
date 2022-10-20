@@ -1,7 +1,5 @@
 package it.nm.sparkplugha.events;
 
-import java.util.Date;
-
 import org.eclipse.paho.client.mqttv3.MqttClient;
 
 public class SPHAMQTTConnectLossEvent implements SPHAEvent {
@@ -13,14 +11,6 @@ public class SPHAMQTTConnectLossEvent implements SPHAEvent {
 
 	this.client = client;
 	this.cause = cause;
-
-    }
-
-    @Override
-    public Date getTimestamp() {
-
-	// TODO Auto-generated method stub
-	return null;
 
     }
 
