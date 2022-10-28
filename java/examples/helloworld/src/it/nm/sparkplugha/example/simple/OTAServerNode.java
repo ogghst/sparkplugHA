@@ -47,7 +47,7 @@ public class OTAServerNode extends MQTTSPHANode {
 	setServerPassword("changeme");
 
 	ota = new OTAServerFeature(this, "fwName", "1.0.0");
-	addFeature(ota);
+	addDevice(ota);
 	publishNodeBirth();
 
     }

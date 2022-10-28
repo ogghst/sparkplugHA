@@ -2,7 +2,7 @@ package it.nm.sparkplugha.events;
 
 import it.nm.sparkplugha.model.SPHANode;
 
-public abstract class SPHANodeEvent implements SPHAEvent {
+public class SPHANodeEvent implements SPHAEvent {
 
     private SPHANode node;
 

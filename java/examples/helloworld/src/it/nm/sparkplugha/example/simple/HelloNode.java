@@ -7,6 +7,7 @@ import java.util.logging.Logger;
 import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.SparkplugBPayload;
 
+import it.nm.sparkplugha.SPHAUtils;
 import it.nm.sparkplugha.features.OTAClientFeature;
 import it.nm.sparkplugha.model.devices.SPHAHVAC;
 import it.nm.sparkplugha.mqtt.MQTTSPHANode;
@@ -30,21 +31,21 @@ public class HelloNode extends MQTTSPHANode {
 
     public HelloNode() throws Exception {
 
-	super("SparkplugHA", "JavaHelloNode", SPHANodeState.OFFLINE);
+	super("SparkplugHA", "HelloNode", SPHANodeState.OFFLINE);
 
 	setServerUrl("tcp://localhost:1883");
 
-	setClientId("JavaHelloEdgeNode");
+	setClientId("HelloEdgeNode");
 	setServerUsername("admin");
 	setServerPassword("changeme");
 
 	ota = new OTAClientFeature(this, "FwName", "1.0.0");
-	addFeature(ota);
+	addDevice(ota);
 
 	// hvac = new SPHAHVAC("HelloHVAC");
 	// addDevice(hvac);
 
-	helloWorldMetric = createMetric("helloWorldMetric", String, "uninitialized");
+	helloWorldMetric = SPHAUtils.addMetric("helloWorldMetric", String, "uninitialized");
 
     }
 
@@ -90,9 +91,9 @@ public class HelloNode extends MQTTSPHANode {
 
 	LOGGER.info("Connected");
 
-	Thread.sleep(5000);
+	Thread.sleep(20000);
 
-	for (int i = 0; i < 5; i++) {
+	for (int i = 0; i < 2; i++) {
 
 	    Thread.sleep(4000);
 	    node.run();

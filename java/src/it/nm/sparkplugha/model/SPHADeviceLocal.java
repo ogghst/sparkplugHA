@@ -2,14 +2,12 @@ package it.nm.sparkplugha.model;
 
 import org.eclipse.tahu.message.model.EdgeNodeDescriptor;
 import org.eclipse.tahu.message.model.Metric;
-import org.eclipse.tahu.message.model.SparkplugBPayload;
-import org.eclipse.tahu.message.model.Topic;
 
-public abstract class SPHAFeatureLocal extends SPHAFeature {
+public abstract class SPHADeviceLocal extends SPHADevice {
 
-    public SPHAFeatureLocal(String name, SPHANodeLocal node, SparkplugBPayload payload) {
+    public SPHADeviceLocal(String name, SPHANodeLocal node) {
 
-	super(name, node, payload);
+	super(name, node);
 
     }
 

@@ -20,6 +20,7 @@ import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
 import org.eclipse.tahu.SparkplugException;
+import org.eclipse.tahu.SparkplugInvalidTypeException;
 import org.eclipse.tahu.message.SparkplugBPayloadDecoder;
 import org.eclipse.tahu.message.SparkplugBPayloadEncoder;
 import org.eclipse.tahu.message.model.EdgeNodeDescriptor;
@@ -29,9 +30,9 @@ import org.eclipse.tahu.message.model.SparkplugBPayload;
 import org.eclipse.tahu.util.CompressionAlgorithm;
 import org.eclipse.tahu.util.PayloadUtil;
 
-import it.nm.sparkplugha.Utils;
-import it.nm.sparkplugha.model.SPHAFeature;
-import it.nm.sparkplugha.model.SPHAFeatureLocal;
+import it.nm.sparkplugha.SPHAUtils;
+import it.nm.sparkplugha.model.SPHADevice;
+import it.nm.sparkplugha.model.SPHADeviceLocal;
 import it.nm.sparkplugha.model.SPHANodeLocal;
 
 public abstract class MQTTSPHANode extends SPHANodeLocal implements MqttCallbackExtended {
@@ -98,39 +99,19 @@ public abstract class MQTTSPHANode extends SPHANodeLocal implements MqttCallback
 	client.subscribe(NAMESPACE + "/" + getGroupId() + "/" + MessageType.DCMD + "/" + getEdgeNodeId() + "/#", 0);
 
 	// TODO manage SCADA state message
-	client.subscribe(Utils.SCADA_NAMESPACE + "/#", 0);
+	client.subscribe(SPHAUtils.SCADA_NAMESPACE + "/#", 0);
 
-	for (SPHAFeature feature : getFeatures()) {
+	for (SPHADevice device : getDevices()) {
 
-	    subscribeFeature(feature);
-
-	}
-
-    }
-
-    @Override
-    protected void addFeature(SPHAFeature feature) {
-
-	super.addFeature(feature);
-
-	if (client == null || !client.isConnected())
-	    return;
-
-	try {
-
-	    subscribeFeature(feature);
-
-	} catch (Exception e) {
-
-	    LOGGER.log(Level.WARNING, "Cannot subscribe to topic. Cause: " + e.getMessage(), e);
+	    subscribeFeature(device);
 
 	}
 
     }
 
-    private void subscribeFeature(SPHAFeature feature) throws MqttException {
+    private void subscribeFeature(SPHADevice feature) throws MqttException {
 
-	LOGGER.fine("Subscribing feature: " + feature.getName() + ". Topic = '" + feature.getTopic() + "'");
+	LOGGER.fine("Subscribing feature: " + feature.getDeviceId() + ". Topic = '" + feature.getDeviceId() + "'");
 
 	// client.subscribe(NAMESPACE + "/" + groupId + "/" + MessageType.DCMD + "/" +
 	// edgeNode + "/" + feature.getTopic(),
@@ -165,7 +146,16 @@ public abstract class MQTTSPHANode extends SPHANodeLocal implements MqttCallback
     public void connectComplete(boolean reconnect, String serverURI) {
 
 	LOGGER.fine("Connection estabilished with '" + serverURI + "', reconnect = " + reconnect);
-	publishNodeBirth();
+
+	try {
+
+	    publishNodeBirth();
+
+	} catch (SparkplugInvalidTypeException e) {
+
+	    LOGGER.log(Level.SEVERE, e.getMessage(), e);
+
+	}
 
     }
 
@@ -249,7 +239,7 @@ public abstract class MQTTSPHANode extends SPHANodeLocal implements MqttCallback
 
 	String[] splitTopic = topic.split("/");
 
-	if (splitTopic[0].equals(Utils.SCADA_NAMESPACE)) {
+	if (splitTopic[0].equals(SPHAUtils.SCADA_NAMESPACE)) {
 
 	    LOGGER.fine("SCADA update: " + splitTopic[1]);
 	    return;
@@ -337,9 +327,9 @@ public abstract class MQTTSPHANode extends SPHANodeLocal implements MqttCallback
 	 * }
 	 */
 
-	for (SPHAFeature _f : getFeatures()) {
+	for (SPHADevice _f : getDevices()) {
 
-	    SPHAFeatureLocal feature = (SPHAFeatureLocal) _f;
+	    SPHADeviceLocal feature = (SPHADeviceLocal) _f;
 
 	    Vector<String> dT = new Vector<String>(Arrays.asList(feature.getListeningDeviceDataTopics()));
 	    // Vector<String> cT = new
@@ -347,7 +337,7 @@ public abstract class MQTTSPHANode extends SPHANodeLocal implements MqttCallback
 
 	    // addressed directly to the feature
 	    if (splitTopic[0].equals(NAMESPACE) && splitTopic[1].equals(getGroupId()) && splitTopic[2].equals("DCMD")
-		    && splitTopic[3].equals(getEdgeNodeId()) && splitTopic[4].equals(feature.getTopic())) {
+		    && splitTopic[3].equals(getEdgeNodeId()) && splitTopic[4].equals(feature.getDeviceId())) {
 
 		for (Metric metric : inboundPayload.getMetrics()) {
 
@@ -387,7 +377,7 @@ public abstract class MQTTSPHANode extends SPHANodeLocal implements MqttCallback
 
     }
 
-    protected void publishNodeBirth() {
+    protected void publishNodeBirth() throws SparkplugInvalidTypeException {
 
 	synchronized (seqLock) {
 
@@ -395,6 +385,16 @@ public abstract class MQTTSPHANode extends SPHANodeLocal implements MqttCallback
 	    resetSeq();
 	    executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + getGroupId() + "/NBIRTH/" + getEdgeNodeId(),
 		    getPayload(), 0, false, USING_COMPRESSION));
+
+	    for (SPHADevice feature : getDevices()) {
+
+		feature.getPayload().setSeq(increaseSeq());
+
+		executor.execute(new MQTTPublisher(client,
+			NAMESPACE + "/" + getGroupId() + "/DBIRTH/" + getEdgeNodeId() + "/" + feature.getDeviceId(),
+			feature.getPayload(), 0, false, USING_COMPRESSION));
+
+	    }
 
 	}
 
@@ -452,7 +452,7 @@ public abstract class MQTTSPHANode extends SPHANodeLocal implements MqttCallback
 
     }
 
-    public void publishFeatureData(SPHAFeature feature, SparkplugBPayload payload) throws Exception {
+    public void publishFeatureData(SPHADevice feature, SparkplugBPayload payload) throws Exception {
 
 	if (client.isConnected()) {
 
@@ -460,7 +460,7 @@ public abstract class MQTTSPHANode extends SPHANodeLocal implements MqttCallback
 
 		payload.setSeq(increaseSeq());
 		executor.execute(new MQTTPublisher(client,
-			NAMESPACE + "/" + getGroupId() + "/DDATA/" + getEdgeNodeId() + "/" + feature.getTopic(),
+			NAMESPACE + "/" + getGroupId() + "/DDATA/" + getEdgeNodeId() + "/" + feature.getDeviceId(),
 			payload, 0, false, USING_COMPRESSION));
 
 	    }
@@ -474,7 +474,7 @@ public abstract class MQTTSPHANode extends SPHANodeLocal implements MqttCallback
 
     }
 
-    public void publishFeatureCommand(SPHAFeature feature, EdgeNodeDescriptor descriptor, SparkplugBPayload payload)
+    public void publishFeatureCommand(SPHADevice feature, EdgeNodeDescriptor descriptor, SparkplugBPayload payload)
 	    throws Exception {
 
 	if (client.isConnected()) {
@@ -483,7 +483,7 @@ public abstract class MQTTSPHANode extends SPHANodeLocal implements MqttCallback
 
 		payload.setSeq(increaseSeq());
 		executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + descriptor.getGroupId() + "/DCMD/"
-			+ descriptor.getEdgeNodeId() + "/" + feature.getTopic(), payload, 0, false, USING_COMPRESSION));
+			+ descriptor.getEdgeNodeId() + "/" + feature.getDeviceId(), payload, 0, false, USING_COMPRESSION));
 
 	    }
 
@@ -496,14 +496,13 @@ public abstract class MQTTSPHANode extends SPHANodeLocal implements MqttCallback
 
     }
 
-    protected void publishNodeDeath(SparkplugBPayload payload) {
+    public void publishNodeDeath() {
 
 	synchronized (seqLock) {
 
-	    // Reset the sequence number
-	    resetSeq();
+	    getPayload().setSeq(increaseSeq());
 	    executor.execute(new MQTTPublisher(client, NAMESPACE + "/" + getGroupId() + "/NDEATH/" + getEdgeNodeId(),
-		    payload, 0, false, false));
+		    getPayload(), 0, false, false));
 
 	}
 

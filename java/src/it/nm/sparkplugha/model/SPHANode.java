@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.Hashtable;
 import java.util.logging.Logger;
 
+import org.eclipse.tahu.message.model.DeviceDescriptor;
 import org.eclipse.tahu.message.model.SparkplugBPayload;
 
 import com.fasterxml.jackson.annotation.JsonValue;
@@ -37,7 +38,7 @@ public abstract class SPHANode {
     private SparkplugBPayload payload;
 
     //private Hashtable<String, SPHAMetric> metrics;
-    private Hashtable<String, SPHAFeature> features;
+    private Hashtable<String, SPHADevice> devices;
 
     public SPHANode(String groupId, String edgeNodeId, SPHANodeState state) {
 
@@ -49,7 +50,7 @@ public abstract class SPHANode {
 	this.setPayload(new SparkplugBPayload());
 
 	//metrics = new Hashtable<String, SPHAMetric>();
-	features = new Hashtable<String, SPHAFeature>();
+	devices = new Hashtable<String, SPHADevice>();
 
     }
     
@@ -63,7 +64,7 @@ public abstract class SPHANode {
 	this.setPayload(payload);
 
 	//metrics = new Hashtable<String, SPHAMetric>();
-	features = new Hashtable<String, SPHAFeature>();
+	devices = new Hashtable<String, SPHADevice>();
 	
     }
 
@@ -89,16 +90,20 @@ public abstract class SPHANode {
 
 	if (seq == 256) {
 
-	    seq = 0;
+	    seq = -1;
 
 	}
 
-	return ++seq;
+	seq = seq + 1;
+	LOGGER.fine("Increased seq : "+seq);
+	
+	return seq;
 
     }
 
     public long getSeq() {
 
+	LOGGER.fine("Get seq : "+seq);
 	return seq;
 
     }
@@ -113,12 +118,6 @@ public abstract class SPHANode {
 
 	seq = 0;
 	return seq;
-
-    }
-
-    protected String newUUID() {
-
-	return java.util.UUID.randomUUID().toString();
 
     }
 
@@ -146,11 +145,13 @@ public abstract class SPHANode {
 
     }
 
-    protected void addFeature(SPHAFeature feature) {
+    protected void addDevice(SPHADevice device) {
 
-	features.put(feature.getName(), feature);
+	devices.put(device.getDeviceId(), device);
 
     }
+    
+    
 
     public void setState(SPHANodeState state) {
 
@@ -165,10 +166,14 @@ public abstract class SPHANode {
 
     }
 
-    public Collection<SPHAFeature> getFeatures() {
+    public Collection<SPHADevice> getDevices() {
 
-	return features.values();
+	return devices.values();
 
+    }
+    
+    public SPHADevice getDevice(String name) {
+	return devices.get(name);
     }
 
     /*

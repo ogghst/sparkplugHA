@@ -22,6 +22,7 @@ import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.tahu.SparkplugParsingException;
 import org.eclipse.tahu.message.SparkplugBPayloadDecoder;
+import org.eclipse.tahu.message.model.DeviceDescriptor;
 import org.eclipse.tahu.message.model.EdgeNodeDescriptor;
 import org.eclipse.tahu.message.model.MessageType;
 import org.eclipse.tahu.message.model.Metric;
@@ -36,6 +37,7 @@ import org.eclipse.tahu.util.TopicUtil;
 import it.nm.sparkplugha.events.SPHADeviceBirthEvent;
 import it.nm.sparkplugha.events.SPHADeviceCommandEvent;
 import it.nm.sparkplugha.events.SPHADeviceDataEvent;
+import it.nm.sparkplugha.events.SPHADeviceDeathEvent;
 import it.nm.sparkplugha.events.SPHAEventManager;
 import it.nm.sparkplugha.events.SPHAMQTTConnectEvent;
 import it.nm.sparkplugha.events.SPHAMQTTConnectLossEvent;
@@ -44,6 +46,8 @@ import it.nm.sparkplugha.events.SPHANodeCommandEvent;
 import it.nm.sparkplugha.events.SPHANodeDataEvent;
 import it.nm.sparkplugha.events.SPHANodeDeathEvent;
 import it.nm.sparkplugha.events.SPHANodeOutOfSequenceEvent;
+import it.nm.sparkplugha.model.SPHADevice;
+import it.nm.sparkplugha.model.SPHADeviceRemote;
 import it.nm.sparkplugha.model.SPHANode;
 import it.nm.sparkplugha.model.SPHANode.SPHANodeState;
 import it.nm.sparkplugha.model.SPHANodeRemote;
@@ -282,7 +286,7 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 
 	    if (topic.isType(MessageType.NCMD) || topic.isType(MessageType.DCMD)) {
 
-		LOGGER.fine("Ignoring CMD message");
+		LOGGER.severe("Ignoring CMD message");
 		return;
 
 	    }
@@ -305,7 +309,6 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 
 	    // Get the EdgeNodeDescriptor
 	    EdgeNodeDescriptor edgeNodeDescriptor = new EdgeNodeDescriptor(topic.getGroupId(), topic.getEdgeNodeId());
-
 	    SPHANodeRemote edgeNode = edgeNodeMap.get(edgeNodeDescriptor);
 
 	    // Special case for NBIRTH
@@ -317,10 +320,39 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 	    }
 
 	    // Special case for NDEATH
-	    if (topic.getType().equals(MessageType.NDEATH)) {
+	    else if (topic.getType().equals(MessageType.NDEATH)) {
 
-		edgeNode = new SPHANodeRemote(topic, it.nm.sparkplugha.model.SPHANode.SPHANodeState.OFFLINE, payload);
-		edgeNodeMap.put(edgeNodeDescriptor, edgeNode);
+		edgeNode = edgeNodeMap.get(edgeNodeDescriptor);
+
+		if (edgeNode == null) {
+
+		    edgeNode = new SPHANodeRemote(topic, it.nm.sparkplugha.model.SPHANode.SPHANodeState.OFFLINE,
+			    payload);
+		    edgeNodeMap.put(edgeNodeDescriptor, edgeNode);
+
+		}
+
+		evtMgr.trigger(new SPHANodeDeathEvent(edgeNode));
+		return;
+
+	    }
+
+	    // Special case for DDEATH
+	    else if (topic.getType().equals(MessageType.DDEATH)) {
+
+		edgeNode = edgeNodeMap.get(edgeNodeDescriptor);
+
+		if (edgeNode == null) {
+
+		    LOGGER.warning("Unexpected DDEATH on topic " + topic + " - requesting Rebirth");
+		    requestRebirth(edgeNodeDescriptor);
+		    return;
+
+		}
+
+		SPHADeviceRemote device = edgeNode.addDevice(topic, payload);
+		evtMgr.trigger(new SPHADeviceDeathEvent(device));
+		return;
 
 	    }
 
@@ -329,14 +361,6 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 
 		LOGGER.warning("Unexpected message on topic " + topic + " - requesting Rebirth");
 		requestRebirth(edgeNodeDescriptor);
-		return;
-
-	    }
-
-	    if (topic.getType().equals(MessageType.NDEATH)) {
-
-		edgeNodeMap.get(edgeNodeDescriptor).setState(SPHANodeState.OFFLINE);
-		evtMgr.trigger(new SPHANodeDeathEvent(edgeNode));
 		return;
 
 	    }
@@ -352,43 +376,46 @@ public class MQTTSPHAPrimaryApplication implements MqttCallbackExtended {
 		    LOGGER.fine("	Metric " + metric.getName() + "=" + metric.getValue());
 
 		}
-		
-		// now inject the payload to the node
-		edgeNode.setPayload(payload);
 
 		if (topic.getType().equals(MessageType.NBIRTH)) {
 
+		    // now inject the payload to the node
+		    edgeNode.setPayload(payload);
 		    evtMgr.trigger(new SPHANodeBirthEvent(edgeNode));
 
 		}
 
-		if (topic.getType().equals(MessageType.DBIRTH)) {
+		else if (topic.getType().equals(MessageType.NDATA)) {
 
-		    evtMgr.trigger(new SPHADeviceBirthEvent(edgeNode));
-
-		}
-
-		if (topic.getType().equals(MessageType.NDATA)) {
-
+		    // now inject the payload to the node
+		    edgeNode.setPayload(payload);
 		    evtMgr.trigger(new SPHANodeDataEvent(edgeNode));
 
 		}
 
-		if (topic.getType().equals(MessageType.DDATA)) {
+		else if (topic.getType().equals(MessageType.DBIRTH)) {
 
-		    evtMgr.trigger(new SPHADeviceDataEvent(edgeNode));
-
-		}
-
-		if (topic.getType().equals(MessageType.NCMD)) {
-
-		    evtMgr.trigger(new SPHANodeCommandEvent(edgeNode));
+		    SPHADeviceRemote device = edgeNode.addDevice(topic, payload);
+		    device.setPayload(payload);
+		    evtMgr.trigger(new SPHADeviceBirthEvent(device));
+		    return;
 
 		}
 
-		if (topic.getType().equals(MessageType.DCMD)) {
+		else if (topic.getType().equals(MessageType.DDATA)) {
 
-		    evtMgr.trigger(new SPHADeviceCommandEvent(edgeNode));
+		    SPHADevice device = edgeNode.getDevice(topic.getDeviceId());
+
+		    if (device == null) {
+
+			LOGGER.fine("DBIRTH not arrived for device: " + topic.getDeviceId() + ". request rebirth");
+			requestRebirth(edgeNodeDescriptor);
+			return;
+
+		    }
+
+		    device.setPayload(payload);
+		    evtMgr.trigger(new SPHADeviceDataEvent(device));
 
 		}
 

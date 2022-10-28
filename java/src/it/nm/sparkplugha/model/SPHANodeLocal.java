@@ -6,13 +6,14 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.logging.Logger;
 
-import org.eclipse.tahu.SparkplugInvalidTypeException;
 import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.Metric.MetricBuilder;
 import org.eclipse.tahu.message.model.MetricDataType;
 import org.eclipse.tahu.message.model.SparkplugBPayload;
 import org.eclipse.tahu.message.model.SparkplugBPayload.SparkplugBPayloadBuilder;
 import org.eclipse.tahu.message.model.Topic;
+
+import it.nm.sparkplugha.SPHAUtils;
 
 public abstract class SPHANodeLocal extends SPHANode {
 
@@ -52,7 +53,7 @@ public abstract class SPHANodeLocal extends SPHANode {
 
     }
 
-    private SparkplugBPayload createNodeBirthPayload() throws Exception {
+    public SparkplugBPayload createNodeBirthPayload() throws Exception {
 
 	synchronized (seqLock) {
 
@@ -97,7 +98,7 @@ public abstract class SPHANodeLocal extends SPHANode {
 
     public SparkplugBPayload createPayload() {
 
-	SparkplugBPayload p = new SparkplugBPayload(new Date(), new ArrayList<Metric>(), getSeq(), newUUID(),
+	SparkplugBPayload p = new SparkplugBPayload(new Date(), new ArrayList<Metric>(), getSeq(), SPHAUtils.newUUID(),
 		null);
 	return p;
 
@@ -123,13 +124,7 @@ public abstract class SPHANodeLocal extends SPHANode {
     */
     
 
-    public Metric createMetric(String name, MetricDataType type, Object value) throws SparkplugInvalidTypeException {
 
-	Metric metric = new MetricBuilder(name, type, value).createMetric();
-	payload.addMetric(metric);
-	return metric;
-
-    }
 
     public String getClientId() {
 

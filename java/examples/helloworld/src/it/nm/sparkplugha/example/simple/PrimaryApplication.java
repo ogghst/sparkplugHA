@@ -3,7 +3,9 @@ package it.nm.sparkplugha.example.simple;
 import java.util.logging.Logger;
 
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 
+import it.nm.sparkplugha.monitor.SparkPlugMonitor;
 import it.nm.sparkplugha.mqtt.MQTTSPHAPrimaryApplication;
 
 public class PrimaryApplication extends MQTTSPHAPrimaryApplication {
@@ -16,6 +18,8 @@ public class PrimaryApplication extends MQTTSPHAPrimaryApplication {
 	// LogManager.getLogManager().getLogger("").setLevel(Level.FINE);
 
 	LOGGER.fine("Start Primary Application");
+
+	UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 
 	PrimaryApplication node = new PrimaryApplication();
 	node.connect();
@@ -31,16 +35,8 @@ public class PrimaryApplication extends MQTTSPHAPrimaryApplication {
 	setServerUsername("admin");
 	setServerPassword("changeme");
 
-	SwingUtilities.invokeAndWait(new Runnable() {
-
-	    @Override
-	    public void run() {
-
-		new SparkPlugMonitor(evtMgr);
-
-	    }
-
-	});
+	new SparkPlugMonitor().init(evtMgr);
+	
 
     }
 

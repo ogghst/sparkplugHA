@@ -1,12 +1,12 @@
 package it.nm.sparkplugha.events;
 
-import it.nm.sparkplugha.model.SPHANode;
+import it.nm.sparkplugha.model.SPHADevice;
 
-public class SPHADeviceDataEvent extends SPHANodeEvent {
+public class SPHADeviceDataEvent extends SPHADeviceEvent {
 
-    public SPHADeviceDataEvent(SPHANode node) {
+    public SPHADeviceDataEvent(SPHADevice device) {
 
-	super(node);
+	super(device);
 
     }
 

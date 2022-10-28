@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import org.eclipse.tahu.SparkplugInvalidTypeException;
-import org.eclipse.tahu.message.model.DeviceDescriptor;
 import org.eclipse.tahu.message.model.EdgeNodeDescriptor;
 import org.eclipse.tahu.message.model.Metric;
 import org.eclipse.tahu.message.model.Metric.MetricBuilder;
@@ -15,13 +14,11 @@ import org.eclipse.tahu.message.model.ParameterDataType;
 import org.eclipse.tahu.message.model.SparkplugBPayload;
 import org.eclipse.tahu.message.model.Template;
 import org.eclipse.tahu.message.model.Template.TemplateBuilder;
-import org.eclipse.tahu.message.model.Topic;
-import org.eclipse.tahu.util.TopicUtil;
 
-import it.nm.sparkplugha.model.SPHAFeatureLocal;
+import it.nm.sparkplugha.model.SPHADeviceLocal;
 import it.nm.sparkplugha.model.SPHANodeLocal;
 
-public class OTAClientFeature extends SPHAFeatureLocal {
+public class OTAClientFeature extends SPHADeviceLocal {
 
     private final static Logger LOGGER = Logger.getLogger(OTAClientFeature.class.getName());
 
@@ -36,10 +33,10 @@ public class OTAClientFeature extends SPHAFeatureLocal {
 
     public OTAClientFeature(SPHANodeLocal node, String fwName, String fwVersion) throws SparkplugInvalidTypeException {
 
-	//TODO better payload generation 
-	super("OTAClient", node, new SparkplugBPayload());
+	super("OTAClient", node);
 	params.add(new Parameter(FWNAMEPROPERTY, ParameterDataType.String, fwName));
 	params.add(new Parameter(FWVERSIONPROPERTY, ParameterDataType.String, fwVersion));
+	setPayload(createBirthPayload());
 
     }
 
@@ -48,6 +45,17 @@ public class OTAClientFeature extends SPHAFeatureLocal {
 
 	return new TemplateBuilder().version(VERSION).templateRef(FWREQUESTMETRIC).definition(true)
 		.addParameters(params).createTemplate();
+
+    }
+
+    public SparkplugBPayload createBirthPayload() throws SparkplugInvalidTypeException {
+
+	SparkplugBPayload payload = getNode().createPayload();
+	
+	payload.addMetric(
+		new MetricBuilder(FWREQUESTMETRIC, MetricDataType.Template, getTemplateDefinition()).createMetric());
+	
+	return payload;
 
     }
 
@@ -88,7 +96,7 @@ public class OTAClientFeature extends SPHAFeatureLocal {
     }
 
     @Override
-    public String getTopic() {
+    public String getDeviceId() {
 
 	return DEVICETOPIC;
 

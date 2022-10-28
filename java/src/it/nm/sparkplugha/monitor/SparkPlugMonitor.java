@@ -1,16 +1,27 @@
-package it.nm.sparkplugha.example.simple;
+package it.nm.sparkplugha.monitor;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Dimension;
+import java.lang.reflect.InvocationTargetException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.StringTokenizer;
+import java.util.logging.Handler;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+import javax.swing.JTextArea;
 import javax.swing.JTree;
+import javax.swing.SwingUtilities;
+import javax.swing.border.EtchedBorder;
+import javax.swing.border.TitledBorder;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -21,8 +32,10 @@ import javax.swing.tree.TreePath;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.tahu.message.model.Metric;
 
+import it.nm.sparkplugha.events.SPHADeviceBirthEvent;
 import it.nm.sparkplugha.events.SPHADeviceCommandEvent;
 import it.nm.sparkplugha.events.SPHADeviceDataEvent;
+import it.nm.sparkplugha.events.SPHADeviceEvent;
 import it.nm.sparkplugha.events.SPHAEvent;
 import it.nm.sparkplugha.events.SPHAEventListener;
 import it.nm.sparkplugha.events.SPHAEventManager;
@@ -34,33 +47,119 @@ import it.nm.sparkplugha.events.SPHANodeDataEvent;
 import it.nm.sparkplugha.events.SPHANodeDeathEvent;
 import it.nm.sparkplugha.events.SPHANodeEvent;
 import it.nm.sparkplugha.events.SPHANodeOutOfSequenceEvent;
-import it.nm.sparkplugha.model.SPHAFeature;
+import it.nm.sparkplugha.model.SPHADevice;
 import it.nm.sparkplugha.model.SPHANode;
 import it.nm.sparkplugha.model.SPHANode.SPHANodeState;
+import javax.swing.border.BevelBorder;
 
-public class SparkPlugMonitor extends JFrame {
+public class SparkPlugMonitor {
 
     private static final long serialVersionUID = -4623442886076179985L;
 
     private final static Logger LOGGER = Logger.getLogger(SparkPlugMonitor.class.getName());
 
-    private JTree tree;
-    private JLabel selectedLabel;
-    SPHAEventManager evtMgr;
-
+    // private SparkPlugMonitorApplication app;
     private DefaultTreeModel model;
 
-    public SparkPlugMonitor(SPHAEventManager evtMgr) {
+    // private JFrame frame;
+    private JTree tree;
+    private JTextArea logTextArea, detailTextArea;
+
+    // private JLabel selectedLabel;
+    SPHAEventManager evtMgr;
+
+    public SparkPlugMonitor() {
+
+	initialize();
+
+    }
+
+    /**
+     * Initialize the contents of the frame.
+     */
+    private void initialize() {
+
+	JFrame frame = new JFrame();
+	frame.setSize(new Dimension(600, 400));
+	frame.setPreferredSize(new Dimension(800, 600));
+	frame.setBounds(100, 100, 610, 485);
+	frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+	frame.setTitle("Primary Application Demo");
+
+	frame.setVisible(true);
+
+	logTextArea = new JTextArea();
+	logTextArea.setBorder(new TitledBorder(null, "Event Log", TitledBorder.LEADING, TitledBorder.TOP, null, null));
+	logTextArea.setPreferredSize(new Dimension(1, 100));
+
+	JSplitPane nodesSplitPane = new JSplitPane();
+
+	tree = new JTree();
+
+	JScrollPane treeScrollPane = new JScrollPane(tree, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+		JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+
+	treeScrollPane.setBorder(new EtchedBorder(EtchedBorder.LOWERED, null, null));
+	nodesSplitPane.setLeftComponent(treeScrollPane);
+
+	detailTextArea = new JTextArea();
+	detailTextArea.setBorder(new BevelBorder(BevelBorder.LOWERED, null, null, null, null));
+	nodesSplitPane.setRightComponent(detailTextArea);
+	nodesSplitPane.setDividerLocation(400);
+
+	mainSplitPane = new JSplitPane();
+	mainSplitPane.setOrientation(JSplitPane.VERTICAL_SPLIT);
+	mainSplitPane.setLeftComponent(nodesSplitPane);
+	mainSplitPane.setRightComponent(logTextArea);
+	mainSplitPane.setDividerLocation(200);
+	frame.getContentPane().add(mainSplitPane, BorderLayout.CENTER);
+
+    }
+
+    private static final SimpleDateFormat dateformatter = new SimpleDateFormat("hh:mm:ss:SSSS");
+    private JSplitPane mainSplitPane;
+
+    public void log(String string) {
+
+	logTextArea.append("[" + dateformatter.format(new Date()) + "] - " + string + "\n");
+
+    }
+
+    public void init(SPHAEventManager evtMgr) {
 
 	this.evtMgr = evtMgr;
 
-	// create the root node
+	try {
+
+	    SwingUtilities.invokeAndWait(new Runnable() {
+
+		@Override
+		public void run() {
+
+		    startup();
+
+		}
+
+	    });
+
+	} catch (Exception e) {
+
+	    LOGGER.log(Level.SEVERE, e.getMessage(), e);
+	    return;
+
+	}
+
+    }
+
+    private void startup() {
+
+	// app = new SparkPlugMonitorApplication();
+	// tree = app.getTree();
+	model = (DefaultTreeModel) tree.getModel();
 	DefaultMutableTreeNode root = new DefaultMutableTreeNode("SpHA Network");
 
-	// create the tree by passing in the root node
-	tree = new JTree(root);
-
-	model = (DefaultTreeModel) tree.getModel();
+	model.setRoot(root);
 
 	SpTreeCellRendered renderer = new SpTreeCellRendered();
 
@@ -68,27 +167,26 @@ public class SparkPlugMonitor extends JFrame {
 	tree.setCellRenderer(renderer);
 	tree.setShowsRootHandles(true);
 
-	add(new JScrollPane(tree));
+	// add(new JScrollPane(tree));
 
-	selectedLabel = new JLabel();
-	add(selectedLabel, BorderLayout.SOUTH);
+	// selectedLabel = new JLabel();
+	// add(selectedLabel, BorderLayout.SOUTH);
 	tree.getSelectionModel().addTreeSelectionListener(new TreeSelectionListener() {
 
 	    @Override
 	    public void valueChanged(TreeSelectionEvent e) {
 
 		DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) tree.getLastSelectedPathComponent();
-		if (selectedNode != null)
-		    selectedLabel.setText(selectedNode.getUserObject().toString());
+
+		if (selectedNode != null) {
+
+		    detailTextArea.setText(selectedNode.getUserObject().toString());
+
+		}
 
 	    }
 
 	});
-
-	this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-	this.setTitle("Primary Application Demo");
-	this.setSize(600, 600);
-	this.setVisible(true);
 
 	evtMgr.subscribe(SPHAMQTTConnectLossEvent.class, new SPHAEventListener() {
 
@@ -103,6 +201,7 @@ public class SparkPlugMonitor extends JFrame {
 
 		    buildTreeStructure(new MQTTClientTreeNode(me.getClient()),
 			    (DefaultMutableTreeNode) model.getRoot());
+		    log("MQTT Disconnected");
 
 		} catch (Exception e) {
 
@@ -125,6 +224,7 @@ public class SparkPlugMonitor extends JFrame {
 
 		    buildTreeStructure(new MQTTClientTreeNode(me.getClient()),
 			    (DefaultMutableTreeNode) model.getRoot());
+		    log("MQTT Connected");
 
 		} catch (Exception e) {
 
@@ -141,7 +241,8 @@ public class SparkPlugMonitor extends JFrame {
 	    @Override
 	    public void trigger(SPHAEvent event) {
 
-		buildTreeFromEvent(event);
+		buildTreeFromEvent((SPHANodeEvent) event);
+		log("NBIRTH: " + ((SPHANodeEvent) event).getNode().getDescriptorString());
 
 	    }
 
@@ -153,6 +254,7 @@ public class SparkPlugMonitor extends JFrame {
 	    public void trigger(SPHAEvent event) {
 
 		buildTreeFromEvent(event);
+		log("NDATA: " + ((SPHANodeEvent) event).getNode().getDescriptorString());
 
 	    }
 
@@ -164,6 +266,19 @@ public class SparkPlugMonitor extends JFrame {
 	    public void trigger(SPHAEvent event) {
 
 		buildTreeFromEvent(event);
+		log("NCMD: " + ((SPHANodeEvent) event).getNode().getDescriptorString());
+
+	    }
+
+	});
+
+	evtMgr.subscribe(SPHADeviceBirthEvent.class, new SPHAEventListener() {
+
+	    @Override
+	    public void trigger(SPHAEvent event) {
+
+		buildTreeFromEvent(event);
+		log("DBIRTH: " + ((SPHADeviceBirthEvent) event).getDevice().getDescriptorString());
 
 	    }
 
@@ -175,6 +290,7 @@ public class SparkPlugMonitor extends JFrame {
 	    public void trigger(SPHAEvent event) {
 
 		buildTreeFromEvent(event);
+		log("DDATA: " + ((SPHADeviceBirthEvent) event).getDevice().getDescriptorString());
 
 	    }
 
@@ -186,6 +302,7 @@ public class SparkPlugMonitor extends JFrame {
 	    public void trigger(SPHAEvent event) {
 
 		buildTreeFromEvent(event);
+		log("DCMD: " + ((SPHADeviceBirthEvent) event).getDevice().getDescriptorString());
 
 	    }
 
@@ -197,6 +314,7 @@ public class SparkPlugMonitor extends JFrame {
 	    public void trigger(SPHAEvent event) {
 
 		buildTreeFromEvent(event);
+		log("NDEATH: " + ((SPHANodeEvent) event).getNode().getDescriptorString());
 
 	    }
 
@@ -208,6 +326,7 @@ public class SparkPlugMonitor extends JFrame {
 	    public void trigger(SPHAEvent event) {
 
 		buildTreeFromEvent(event);
+		log("Node out of sequence: " + ((SPHANodeOutOfSequenceEvent) event).getNode().getDescriptorString());
 
 	    }
 
@@ -222,6 +341,9 @@ public class SparkPlugMonitor extends JFrame {
 	ImageIcon hub = new ImageIcon(SparkPlugMonitor.class.getResource("hub.png"));
 	ImageIcon cloud = new ImageIcon(SparkPlugMonitor.class.getResource("cloud.png"));
 	ImageIcon cloud_off = new ImageIcon(SparkPlugMonitor.class.getResource("cloud_off.png"));
+	ImageIcon metric = new ImageIcon(SparkPlugMonitor.class.getResource("database-outline.png"));
+	ImageIcon label = new ImageIcon(SparkPlugMonitor.class.getResource("folder-outline.png"));
+	ImageIcon metrics = new ImageIcon(SparkPlugMonitor.class.getResource("database-settings-outline.png"));
 
 	public SpTreeCellRendered() {
 
@@ -269,6 +391,18 @@ public class SparkPlugMonitor extends JFrame {
 		    setIcon(cloud_off);
 
 		}
+
+	    } else if (value instanceof SpBMetricTreeNode) {
+
+		setIcon(metric);
+
+	    } else if (value instanceof SpBEONDevicesTreeNode || value instanceof SpBLabelTreeNode) {
+
+		setIcon(label);
+
+	    } else if (value instanceof SpBEONMetricsTreeNode) {
+
+		setIcon(metrics);
 
 	    }
 
@@ -368,7 +502,8 @@ public class SparkPlugMonitor extends JFrame {
 
     SpBMetricTreeNode buildSpBMetricTreeNode(Metric metric, DefaultMutableTreeNode parent) {
 
-	//LOGGER.fine(" buildSpBMetricTreeNode - metric='" + metric + "', parent = '" + parent + "'");
+	// LOGGER.fine(" buildSpBMetricTreeNode - metric='" + metric + "', parent = '" +
+	// parent + "'");
 
 	int childs = parent.getChildCount();
 
@@ -384,7 +519,7 @@ public class SparkPlugMonitor extends JFrame {
 
 		if (((SpBMetricTreeNode) child).getMetric().getValue().equals(metric.getValue())) {
 
-		    //LOGGER.fine(" findSpBMetricTreeNode - found: '" + child + "'");
+		    // LOGGER.fine(" findSpBMetricTreeNode - found: '" + child + "'");
 		    return ((SpBMetricTreeNode) child);
 
 		}
@@ -397,9 +532,9 @@ public class SparkPlugMonitor extends JFrame {
 
     }
 
-    SpBDeviceTreeNode buildSpBDeviceTreeNode(SPHAFeature feature, DefaultMutableTreeNode parent) {
+    SpBDeviceTreeNode buildSpBDeviceTreeNode(SPHADevice device, DefaultMutableTreeNode parent) {
 
-	//LOGGER.fine(" buildSpBDeviceTreeNode - metric='" + feature + "', parent = '" + parent + "'");
+	LOGGER.fine(" buildSpBDeviceTreeNode - metric='" + device + "', parent = '" + parent + "'");
 
 	int childs = parent.getChildCount();
 
@@ -407,15 +542,15 @@ public class SparkPlugMonitor extends JFrame {
 
 	    DefaultMutableTreeNode child = (DefaultMutableTreeNode) parent.getChildAt(i);
 
-	    SpBDeviceTreeNode deepSearch = buildSpBDeviceTreeNode(feature, child);
+	    SpBDeviceTreeNode deepSearch = buildSpBDeviceTreeNode(device, child);
 	    if (deepSearch != null)
 		return deepSearch;
 
 	    if (child instanceof SpBDeviceTreeNode) {
 
-		if (((SpBDeviceTreeNode) child).getDevice().getName().equals(feature.getName())) {
+		if (((SpBDeviceTreeNode) child).getDevice().getDeviceId().equals(device.getDeviceId())) {
 
-		    //LOGGER.fine(" buildSpBDeviceTreeNode - found: '" + child + "'");
+		    LOGGER.fine(" buildSpBDeviceTreeNode - found: '" + child + "'");
 		    return ((SpBDeviceTreeNode) child);
 
 		}
@@ -424,14 +559,15 @@ public class SparkPlugMonitor extends JFrame {
 
 	}
 
-	return new SpBDeviceTreeNode(feature);
+	return new SpBDeviceTreeNode(device);
 
     }
 
     private DefaultMutableTreeNode buildTreeStructure(DefaultMutableTreeNode node, DefaultMutableTreeNode parent)
 	    throws Exception {
 
-	//LOGGER.fine(" *** buildTreeStructure(" + node + "," + parent + ") - parent childs: " + parent.getChildCount());
+	// LOGGER.fine(" *** buildTreeStructure(" + node + "," + parent + ") - parent
+	// childs: " + parent.getChildCount());
 
 	if (parent == null || node == null)
 	    return null;
@@ -440,8 +576,9 @@ public class SparkPlugMonitor extends JFrame {
 
 	for (int i = 0; i < parent.getChildCount(); i++) {
 
-	    //LOGGER.fine(" *** comparing " + parent.getChildAt(i) + " with " + node + " : "
-		//    + parent.getChildAt(i).equals(node));
+	    // LOGGER.fine(" *** comparing " + parent.getChildAt(i) + " with " + node + " :
+	    // "
+	    // + parent.getChildAt(i).equals(node));
 
 	    if (parent.getChildAt(i).equals(node)) {
 
@@ -461,9 +598,9 @@ public class SparkPlugMonitor extends JFrame {
 	    // node.setParent(parent);
 	    // model.removeNodeFromParent(node);
 	    // model.insertNodeInto(node, parent, childIdx);
-	    model.nodeChanged(parent);
+	    // model.nodeChanged(parent);
 	    model.nodeChanged(child);
-	    tree.scrollPathToVisible(new TreePath(child.getPath()));
+	    //tree.scrollPathToVisible(new TreePath(child.getPath()));
 	    return child;
 
 	} else {
@@ -473,9 +610,9 @@ public class SparkPlugMonitor extends JFrame {
 	    model.insertNodeInto(node, parent, parent.getChildCount());
 	    // LOGGER.fine(" *** childCount: "+parent.getChildCount());
 	    // node.setParent(parent);
-	    model.nodeChanged(parent);
+	    // model.nodeChanged(parent);
 	    model.nodeChanged(node);
-	    tree.scrollPathToVisible(new TreePath(node.getPath()));
+	    //tree.scrollPathToVisible(new TreePath(node.getPath()));
 	    return node;
 
 	}
@@ -513,86 +650,99 @@ public class SparkPlugMonitor extends JFrame {
 
     }
 
-    /*
-     * private void updateTree(SpBEONTreeNode node) {
-     * 
-     * if (node == null) return; SpBEONTreeNode _n =
-     * findSpBEONTreeNode(node.getNode(), (DefaultMutableTreeNode) model.getRoot());
-     * if (_n == null) return; _n.setUserObject(node.getUserObject()); //
-     * DefaultMutableTreeNode parent = (DefaultMutableTreeNode) _n.getParent(); //
-     * model.removeNodeFromParent(_n); model.nodeChanged(_n); //
-     * tree.scrollPathToVisible(new TreePath(parent.getPath())); model.reload();
-     * 
-     * }
-     */
-
     private void buildTreeFromEvent(SPHAEvent event) {
+
+	if (event instanceof SPHANodeEvent) {
+
+	    buildTreeFromNodeEvent((SPHANodeEvent) event);
+
+	} else if (event instanceof SPHADeviceEvent) {
+
+	    buildTreeFromNodeEvent(new SPHANodeEvent(((SPHADeviceEvent) event).getDevice().getNode()));
+
+	}
+
+    }
+
+    private void buildTreeFromNodeEvent(SPHANodeEvent event) {
 
 	try {
 
-	    if (event instanceof SPHANodeEvent) {
+	    SPHANode node = event.getNode();
 
-		SPHANode node = ((SPHANodeEvent) event).getNode();
+	    SpBGroupIDTreeNode gnode = buildSpBGroupIDTreeNode(node, (DefaultMutableTreeNode) model.getRoot());
+	    gnode.setUserObject(node);
 
-		SpBGroupIDTreeNode gnode = buildSpBGroupIDTreeNode(node, (DefaultMutableTreeNode) model.getRoot());
-		gnode.setUserObject(node);
+	    // LOGGER.fine("*** buildTreeFromEvent - node: " + node + ", STATUS " +
+	    // node.getState());
 
-		// LOGGER.fine("*** buildTreeFromEvent - node: " + node + ", STATUS " +
-		// node.getState());
+	    // LOGGER.fine("*** buildTreeFromEvent - gnode " + gnode);
+	    gnode = (SpBGroupIDTreeNode) buildTreeStructure(gnode,
+		    (DefaultMutableTreeNode) ((DefaultMutableTreeNode) model.getRoot()).getChildAt(0));
 
-		// LOGGER.fine("*** buildTreeFromEvent - gnode " + gnode);
-		gnode = (SpBGroupIDTreeNode) buildTreeStructure(gnode,
-			(DefaultMutableTreeNode) ((DefaultMutableTreeNode) model.getRoot()).getChildAt(0));
+	    SpBEONTreeNode nnode = buildSpBEONTreeNode(node, gnode);
+	    nnode.setUserObject(node);
 
-		SpBEONTreeNode nnode = buildSpBEONTreeNode(node, gnode);
-		nnode.setUserObject(node);
+	    // LOGGER.fine("*** buildTreeFromEvent - nnode " + nnode);
+	    nnode = (SpBEONTreeNode) buildTreeStructure(nnode, gnode);
 
-		// LOGGER.fine("*** buildTreeFromEvent - nnode " + nnode);
-		nnode = (SpBEONTreeNode) buildTreeStructure(nnode, gnode);
+	    // LOGGER.fine("*** buildTreeFromEvent - metrics count: " +
+	    // node.getPayload().getMetrics().size());
 
-		// LOGGER.fine("*** buildTreeFromEvent - metrics count: " +
-		// node.getPayload().getMetrics().size());
+	    // makes sure there is a metric label parent
+	    DefaultMutableTreeNode mt = new SpBEONMetricsTreeNode(node);
+	    mt = buildTreeStructure(mt, nnode);
 
-		// makes sure there is a metric label parent
-		DefaultMutableTreeNode mt = new SpBEONMetricsTreeNode(node);
-		mt = buildTreeStructure(mt, nnode);
+	    // update metrics
+	    for (Metric metric : node.getPayload().getMetrics()) {
+
+		// build tree
+		StringTokenizer tok = new StringTokenizer(metric.getName(), "/");
+		DefaultMutableTreeNode ml = buildLabelTree(tok, mt);
+
+		SpBMetricTreeNode menode = buildSpBMetricTreeNode(metric, ml);
+		menode.setUserObject(metric);
+
+		// LOGGER.fine("*** buildTreeFromEvent - menode " + menode);
+
+		buildTreeStructure(menode, ml);
+
+	    }
+
+	    // makes sure there is a features label parent
+	    DefaultMutableTreeNode fl = new SpBEONDevicesTreeNode(node);
+	    fl = buildTreeStructure(fl, nnode);
+
+	    // LOGGER.fine("*** buildTreeFromEvent - features count: " +
+	    // node.getFeatures().size());
+
+	    // update features
+	    for (SPHADevice device : node.getDevices()) {
+
+		// build tree
+		StringTokenizer tok = new StringTokenizer(device.getDeviceId(), "/");
+		DefaultMutableTreeNode ml = buildLabelTree(tok, fl);
+
+		SpBDeviceTreeNode denode = buildSpBDeviceTreeNode(device, ml);
+		denode.setUserObject(device);
+
+		DefaultMutableTreeNode devicenode = buildTreeStructure(denode, ml);
+
+		// LOGGER.fine("*** buildTreeFromEvent - denode " + denode);
 
 		// update metrics
-		for (Metric metric : node.getPayload().getMetrics()) {
+		for (Metric metric2 : device.getPayload().getMetrics()) {
 
 		    // build tree
-		    StringTokenizer tok = new StringTokenizer(metric.getName(), "/");
-		    DefaultMutableTreeNode ml = buildLabelTree(tok, mt);
+		    StringTokenizer tok2 = new StringTokenizer(metric2.getName(), "/");
+		    DefaultMutableTreeNode ml2 = buildLabelTree(tok2, devicenode);
 
-		    SpBMetricTreeNode menode = buildSpBMetricTreeNode(metric, ml);
-		    menode.setUserObject(metric);
+		    SpBMetricTreeNode menode2 = buildSpBMetricTreeNode(metric2, ml2);
+		    menode2.setUserObject(metric2);
 
 		    // LOGGER.fine("*** buildTreeFromEvent - menode " + menode);
 
-		    buildTreeStructure(menode, ml);
-
-		}
-
-		// makes sure there is a features label parent
-		DefaultMutableTreeNode fl = new SpBEONFeaturesTreeNode(node);
-		fl = buildTreeStructure(fl, nnode);
-
-		// LOGGER.fine("*** buildTreeFromEvent - features count: " +
-		// node.getFeatures().size());
-
-		// update features
-		for (SPHAFeature feature : node.getFeatures()) {
-
-		    // build tree
-		    StringTokenizer tok = new StringTokenizer(feature.getName(), "/");
-		    DefaultMutableTreeNode ml = buildLabelTree(tok, fl);
-
-		    SpBDeviceTreeNode denode = buildSpBDeviceTreeNode(feature, fl);
-		    denode.setUserObject(feature);
-
-		    // LOGGER.fine("*** buildTreeFromEvent - denode " + denode);
-
-		    buildTreeStructure(denode, fl);
+		    buildTreeStructure(menode2, ml2);
 
 		}
 
@@ -815,11 +965,11 @@ public class SparkPlugMonitor extends JFrame {
 
     }
 
-    class SpBEONFeaturesTreeNode extends DefaultMutableTreeNode {
+    class SpBEONDevicesTreeNode extends DefaultMutableTreeNode {
 
 	private static final long serialVersionUID = -5384014600817735706L;
 
-	public SpBEONFeaturesTreeNode(SPHANode node) {
+	public SpBEONDevicesTreeNode(SPHANode node) {
 
 	    super(node);
 
@@ -843,16 +993,16 @@ public class SparkPlugMonitor extends JFrame {
 
 	    if (obj == this)
 		return true;
-	    if (!(obj instanceof SpBEONFeaturesTreeNode))
+	    if (!(obj instanceof SpBEONDevicesTreeNode))
 		return false;
 
 	    // LOGGER.fine("EON equals: "+ getNode()+ "(" + getNode().getClass()+ ") with
 	    // "+getNode()+" ("+((SpBEONTreeNode)obj).getNode().getClass()+")");
 
-	    if (((SpBEONFeaturesTreeNode) obj).getNode() == null || userObject == null)
+	    if (((SpBEONDevicesTreeNode) obj).getNode() == null || userObject == null)
 		return false;
 
-	    return ((SpBEONFeaturesTreeNode) obj).getNode().getDescriptorString()
+	    return ((SpBEONDevicesTreeNode) obj).getNode().getDescriptorString()
 		    .equals(((SPHANode) userObject).getDescriptorString());
 
 	}
@@ -864,7 +1014,7 @@ public class SparkPlugMonitor extends JFrame {
 
 	    if (userObject == null)
 		return 0;
-	    return userObject.hashCode();
+	    return ((SPHANode) userObject).getDescriptorString().hashCode();
 
 	}
 
@@ -874,15 +1024,15 @@ public class SparkPlugMonitor extends JFrame {
 
 	private static final long serialVersionUID = -5384014600824335706L;
 
-	public SpBDeviceTreeNode(SPHAFeature feature) {
+	public SpBDeviceTreeNode(SPHADevice feature) {
 
 	    super(feature);
 
 	}
 
-	public SPHAFeature getDevice() {
+	public SPHADevice getDevice() {
 
-	    return (SPHAFeature) userObject;
+	    return (SPHADevice) userObject;
 
 	}
 
@@ -892,8 +1042,8 @@ public class SparkPlugMonitor extends JFrame {
 	    if (userObject == null)
 		return "(no edge node ID)";
 
-	    SPHAFeature node = (SPHAFeature) userObject;
-	    return node.getName();
+	    SPHADevice device = (SPHADevice) userObject;
+	    return device.getDeviceId();
 
 	}
 
@@ -902,13 +1052,13 @@ public class SparkPlugMonitor extends JFrame {
 
 	    if (obj == this)
 		return true;
-	    if (!(obj instanceof SpBEONTreeNode))
+	    if (!(obj instanceof SpBDeviceTreeNode))
 		return false;
 
-	    if (((SpBEONTreeNode) obj).getNode() == null || userObject == null)
+	    if (((SpBDeviceTreeNode) obj).getDevice() == null || userObject == null)
 		return false;
 
-	    return ((SpBEONTreeNode) obj).getNode().getEdgeNodeId().equals(((SPHANode) userObject).getEdgeNodeId());
+	    return ((SpBDeviceTreeNode) obj).getDevice().equals(((SPHADevice) userObject));
 
 	}
 
@@ -936,7 +1086,7 @@ public class SparkPlugMonitor extends JFrame {
 	    Metric metric = (Metric) userObject;
 	    if (metric == null)
 		return "<no metric>";
-	    return metric.getName() + " (" + metric.getValue() + ")";
+	    return metric.getValue().toString();
 
 	}
 

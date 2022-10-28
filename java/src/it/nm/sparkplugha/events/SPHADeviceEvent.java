@@ -1,14 +1,27 @@
 package it.nm.sparkplugha.events;
 
-import it.nm.sparkplugha.model.SPHANodeLocal;
+import it.nm.sparkplugha.model.SPHADevice;
 
+public class SPHADeviceEvent implements SPHAEvent {
 
-public class SPHADeviceEvent extends SPHANodeEvent {
+    public SPHADeviceEvent(SPHADevice device) {
 
-    public SPHADeviceEvent(SPHANodeLocal node) {
+	this.device = device;
 
-	super(node);
-	// TODO Auto-generated constructor stub
+    }
+
+    private SPHADevice device;
+
+    public SPHADevice getDevice() {
+
+	return device;
+
+    }
+
+    @Override
+    public String toString() {
+
+	return device == null ? "<no descriptor>" : device.toString();
 
     }
 
